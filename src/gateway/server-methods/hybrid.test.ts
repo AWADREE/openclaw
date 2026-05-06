@@ -108,7 +108,7 @@ describe("hybridHandlers", () => {
           name: "Owen Carter",
           modelPrimary: "hermes-workers/builder",
           hermesBacked: true,
-          hermesProfile: "builder",
+          hermesProfile: "zbuilder",
           memoryOwner: "hermes",
         },
       ],

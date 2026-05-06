@@ -98,6 +98,14 @@ function hermesProfileFromModel(model: string | null): string | null {
   return match?.[1]?.trim() || null;
 }
 
+function providerModelName(model: string | null): string | null {
+  if (!model) {
+    return null;
+  }
+  const slash = model.indexOf("/");
+  return slash > 0 ? model.slice(slash + 1) : model;
+}
+
 function isHermesProvider(providerId: string, provider: Record<string, unknown> | undefined) {
   if (/hermes/i.test(providerId)) {
     return true;
@@ -248,9 +256,26 @@ export const hybridHandlers: GatewayRequestHandlers = {
         ...probe,
       });
     }
-    const hermesBackedCount = agents.filter((agent) => agent.hermesBacked).length;
+    const adapterProfilesByModel = new Map<string, AdapterProfileStatus>();
+    for (const provider of providerStatuses) {
+      for (const profile of provider.health?.profiles ?? []) {
+        adapterProfilesByModel.set(profile.model, profile);
+      }
+    }
+    const finalAgents = agents.map((agent) => {
+      const profile = adapterProfilesByModel.get(providerModelName(agent.modelPrimary) ?? "");
+      if (!profile) {
+        return agent;
+      }
+      return {
+        ...agent,
+        name: profile.name,
+        hermesProfile: profile.profile,
+      } satisfies HybridAgentStatus;
+    });
+    const hermesBackedCount = finalAgents.filter((agent) => agent.hermesBacked).length;
     const caveats: string[] = [];
-    if (agents.length > 0 && hermesBackedCount < agents.length) {
+    if (finalAgents.length > 0 && hermesBackedCount < finalAgents.length) {
       caveats.push("Some agents are not backed by a Hermes worker provider.");
     }
     if (hermesBackedCount > 0) {
@@ -262,7 +287,7 @@ export const hybridHandlers: GatewayRequestHandlers = {
       ok: true,
       generatedAt: Date.now(),
       providers: providerStatuses,
-      agents,
+      agents: finalAgents,
       telemetry: {
         openclawUsageAuthority: "observed",
         hermesBillingAuthority: "unavailable",
