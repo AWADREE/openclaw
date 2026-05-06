@@ -28,8 +28,18 @@ type OfficeRoom = {
   agents: HybridAgentSummary[];
 };
 
+type OfficeActivity = "working" | "handoff" | "coffee" | "snack" | "nap" | "smoke" | "standby";
+
 function latestRun(agent: HybridAgentSummary) {
   return agent.recentRuns[0] ?? null;
+}
+
+function stableIndex(value: string, modulo: number): number {
+  let hash = 0;
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return modulo > 0 ? hash % modulo : 0;
 }
 
 function runProgress(agent: HybridAgentSummary): number | null {
@@ -63,13 +73,31 @@ function runProgress(agent: HybridAgentSummary): number | null {
 }
 
 function activityLabel(agent: HybridAgentSummary): string {
+  const activity = agentActivity(agent);
+  if (activity === "working") return "Working";
+  if (activity === "handoff") return "Delivering";
+  if (activity === "coffee") return "Coffee";
+  if (activity === "snack") return "Snack";
+  if (activity === "nap") return "Resting";
+  if (activity === "smoke") return "Break";
+  return "Standby";
+}
+
+function agentActivity(agent: HybridAgentSummary): OfficeActivity {
   if (agent.status === "active") {
-    return "Working";
+    const run = latestRun(agent);
+    if (run && run.agents.length > 1) {
+      const index = run.agents.findIndex((entry) => entry.agent === agent.id);
+      if (index >= 0 && index < run.agents.length - 1 && run.status.toLowerCase() !== "accepted") {
+        return "handoff";
+      }
+    }
+    return "working";
   }
   if (agent.status === "idle") {
-    return "Resting";
+    return (["coffee", "snack", "nap", "smoke"] as const)[stableIndex(agent.id, 4)];
   }
-  return "Standby";
+  return "standby";
 }
 
 function teamMission(summary: HybridSummary, teamId: string): string | null {
@@ -131,12 +159,21 @@ function renderAgentSprite(agent: HybridAgentSummary) {
   const run = latestRun(agent);
   const metrics = agent.profileTelemetry?.metrics;
   const hasRecentErrors = (agent.profileTelemetry?.log.recentErrorCount ?? 0) > 0;
+  const activity = agentActivity(agent);
+  const hue = 185 + stableIndex(agent.id, 95);
   return html`
-    <details class="office-agent office-agent--${agent.status}">
+    <details
+      class="office-agent office-agent--${agent.status} office-agent--${activity}"
+      style=${`--agent-hue: ${hue}`}
+    >
       <summary class="office-agent__summary">
         <span class="office-agent__sprite" aria-hidden="true">
           <span class="office-agent__head"></span>
+          <span class="office-agent__hair"></span>
           <span class="office-agent__body"></span>
+          <span class="office-agent__arm office-agent__arm--left"></span>
+          <span class="office-agent__arm office-agent__arm--right"></span>
+          <span class="office-agent__prop"></span>
         </span>
         <span class="office-agent__main">
           <strong>${agent.name}</strong>
@@ -182,6 +219,7 @@ function renderAgentSprite(agent: HybridAgentSummary) {
 }
 
 function renderRoom(room: OfficeRoom) {
+  const workstations = Math.max(2, Math.min(5, room.agents.length || 2));
   return html`
     <section class="office-room office-room--${room.kind}">
       <div class="office-room__header">
@@ -192,8 +230,27 @@ function renderRoom(room: OfficeRoom) {
         <span>${room.agents.length}</span>
       </div>
       <div class="office-room__floor">
+        <span class="office-room__wall" aria-hidden="true"></span>
+        <span class="office-room__plant" aria-hidden="true"></span>
+        ${room.kind === "common"
+          ? html`
+              <span class="office-room__sofa" aria-hidden="true"></span>
+              <span class="office-room__table" aria-hidden="true"></span>
+            `
+          : Array.from({ length: workstations }, (_, index) => index).map(
+              (index) =>
+                html`<span
+                  class="office-room__desk office-room__desk--${index + 1}"
+                  aria-hidden="true"
+                ></span>`,
+            )}
         ${room.agents.length > 0
-          ? room.agents.map(renderAgentSprite)
+          ? room.agents.map(
+              (agent, index) =>
+                html`<div class="office-agent-slot office-agent-slot--${(index % 6) + 1}">
+                  ${renderAgentSprite(agent)}
+                </div>`,
+            )
           : html`<div class="office-room__empty">No active agents in this room.</div>`}
       </div>
     </section>
@@ -212,7 +269,7 @@ function renderHandoffs(summary: HybridSummary) {
           <li>
             <strong>${agent.agent}</strong>
             <span>${agent.role ?? "role n/a"}${agent.note ? ` · ${agent.note}` : ""}</span>
-            ${index < latest.agents.length - 1 ? html`<b aria-hidden="true"></b>` : nothing}
+            ${index < latest.agents.length - 1 ? html`<b aria-hidden="true"><i></i></b>` : nothing}
           </li>
         `,
       )}
