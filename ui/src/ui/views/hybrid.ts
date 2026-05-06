@@ -18,6 +18,14 @@ type HybridProviderProfile = NonNullable<
 
 type HybridRunSummary = HybridStatusResult["runs"]["recent"][number];
 
+type HybridHealthIssueSeverity = "warn" | "error";
+
+export type HybridHealthIssue = {
+  severity: HybridHealthIssueSeverity;
+  title: string;
+  detail: string;
+};
+
 export type HybridAgentSummary = {
   id: string;
   name: string;
@@ -54,6 +62,8 @@ export type HybridSummary = {
   organization: HybridStatusResult["organization"];
   runs: HybridStatusResult["runs"] | null;
   caveats: string[];
+  healthIssueCount: number;
+  healthIssues: HybridHealthIssue[];
 };
 
 export type HybridProps = {
@@ -122,6 +132,52 @@ function statusForAgent(sessions: GatewaySessionRow[]): HybridAgentStatus {
     return "active";
   }
   return sessions.length > 0 ? "idle" : "unknown";
+}
+
+function providerHealthIssues(providers: HybridStatusResult["providers"]): HybridHealthIssue[] {
+  const issues: HybridHealthIssue[] = [];
+  for (const provider of providers) {
+    if (provider.reachable === false) {
+      issues.push({
+        severity: "error",
+        title: `${provider.id} unreachable`,
+        detail: provider.error ?? "The Hermes worker provider did not respond to its health probe.",
+      });
+    }
+    if (provider.health?.ok === false) {
+      issues.push({
+        severity: "error",
+        title: `${provider.id} unhealthy`,
+        detail: "The provider health endpoint returned ok=false.",
+      });
+    }
+    for (const profile of provider.health?.profiles ?? []) {
+      if (profile.log.recentErrorCount > 0) {
+        issues.push({
+          severity: "warn",
+          title: `${profile.name} has recent adapter errors`,
+          detail: `${profile.log.recentErrorCount} recent error${
+            profile.log.recentErrorCount === 1 ? "" : "s"
+          } recorded by ${provider.id}.`,
+        });
+      }
+      if (profile.metrics?.error) {
+        issues.push({
+          severity: "warn",
+          title: `${profile.name} metrics partial`,
+          detail: profile.metrics.error,
+        });
+      }
+      if (!profile.profileHomeExists) {
+        issues.push({
+          severity: "error",
+          title: `${profile.name} profile missing`,
+          detail: `Hermes profile ${profile.profile} was reported missing by the worker adapter.`,
+        });
+      }
+    }
+  }
+  return issues;
 }
 
 export function summarizeHybridState(props: {
@@ -202,6 +258,7 @@ export function summarizeHybridState(props: {
   const openclawNativeCost = toNumberOrZero(props.usageResult?.totals?.totalCost);
   const openclawNativeTokens = toNumberOrZero(props.usageResult?.totals?.totalTokens);
   const hermesBackedCount = agents.filter((agent) => agent.hermesBacked).length;
+  const healthIssues = providerHealthIssues(props.hybridResult?.providers ?? []);
   const caveats: string[] = [...(props.hybridResult?.caveats ?? [])];
   if (agents.length > 0 && hermesBackedCount < agents.length) {
     caveats.push("Some agents are not routed through the Hermes worker provider.");
@@ -226,6 +283,8 @@ export function summarizeHybridState(props: {
     organization: props.hybridResult?.organization ?? null,
     runs: props.hybridResult?.runs ?? null,
     caveats,
+    healthIssueCount: healthIssues.length,
+    healthIssues,
   };
 }
 
@@ -236,6 +295,26 @@ function renderMetric(label: string, value: unknown, hint: string) {
       <div class="hybrid-metric__value">${value}</div>
       <div class="hybrid-metric__hint">${hint}</div>
     </div>
+  `;
+}
+
+function renderHealthIssues(summary: HybridSummary) {
+  if (summary.healthIssues.length === 0) {
+    return html`<div class="muted" style="margin-top: 12px">
+      No adapter or provider health issues detected.
+    </div>`;
+  }
+  return html`
+    <ul class="hybrid-health-list">
+      ${summary.healthIssues.map(
+        (issue) => html`
+          <li class="hybrid-health-list__item hybrid-health-list__item--${issue.severity}">
+            <strong>${issue.title}</strong>
+            <span>${issue.detail}</span>
+          </li>
+        `,
+      )}
+    </ul>
   `;
 }
 
@@ -728,6 +807,7 @@ export function renderHybrid(props: HybridProps) {
           formatCost(summary.openclawNativeCost),
           "Not Hermes billing",
         )}
+        ${renderMetric("Health issues", summary.healthIssueCount, "Adapter/profile")}
       </section>
 
       <section class="hybrid-split">
@@ -759,6 +839,11 @@ export function renderHybrid(props: HybridProps) {
               </ul>`
             : html`<div class="muted">No telemetry caveats detected.</div>`}
         </div>
+      </section>
+
+      <section class="hybrid-panel">
+        <h3>Operational Health</h3>
+        ${renderHealthIssues(summary)}
       </section>
 
       <section class="hybrid-panel">

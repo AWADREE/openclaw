@@ -54,7 +54,7 @@
 
 .hybrid-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
@@ -107,6 +107,40 @@
 
 .hybrid-list li + li {
   margin-top: 8px;
+}
+
+.hybrid-health-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hybrid-health-list__item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.hybrid-health-list__item strong {
+  font-size: 13px;
+}
+
+.hybrid-health-list__item span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.hybrid-health-list__item--warn {
+  border-color: color-mix(in srgb, var(--warn), transparent 55%);
+}
+
+.hybrid-health-list__item--error {
+  border-color: color-mix(in srgb, var(--danger), transparent 45%);
 }
 
 .hybrid-agents {

@@ -185,7 +185,7 @@ describe("summarizeHybridState", () => {
                     lastInvokeAt: 1778097500,
                     lastCompleteAt: 1778097600,
                     lastErrorAt: null,
-                    recentErrorCount: 0,
+                    recentErrorCount: 2,
                   },
                 },
               ],
@@ -235,6 +235,11 @@ describe("summarizeHybridState", () => {
     expect(summary.agents[0]?.recentRuns[0]?.taskId).toBe("password-cli");
     expect(summary.organization?.companies[0]?.name).toBe("Shared Services");
     expect(summary.runs?.recent[0]?.status).toBe("accepted");
+    expect(summary.healthIssueCount).toBe(1);
+    expect(summary.healthIssues[0]).toMatchObject({
+      severity: "warn",
+      title: "Owen Carter has recent adapter errors",
+    });
     expect(summary.caveats).toContain("Hermes metrics bridge pending.");
   });
 });
