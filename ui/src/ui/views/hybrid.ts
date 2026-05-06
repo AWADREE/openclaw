@@ -12,6 +12,12 @@ import type {
 
 type HybridAgentStatus = "active" | "idle" | "unknown";
 
+type HybridProviderProfile = NonNullable<
+  NonNullable<HybridStatusResult["providers"][number]["health"]>["profiles"]
+>[number];
+
+type HybridRunSummary = HybridStatusResult["runs"]["recent"][number];
+
 export type HybridAgentSummary = {
   id: string;
   name: string;
@@ -32,6 +38,8 @@ export type HybridAgentSummary = {
   status: HybridAgentStatus;
   usageTokens: number;
   usageCost: number;
+  profileTelemetry: HybridProviderProfile | null;
+  recentRuns: HybridRunSummary[];
 };
 
 export type HybridSummary = {
@@ -127,6 +135,14 @@ export function summarizeHybridState(props: {
   const backendAgentsById = new Map(
     (props.hybridResult?.agents ?? []).map((agent) => [agent.id, agent] as const),
   );
+  const profilesByModel = new Map<string, HybridProviderProfile>();
+  const profilesByProfile = new Map<string, HybridProviderProfile>();
+  for (const provider of props.hybridResult?.providers ?? []) {
+    for (const profile of provider.health?.profiles ?? []) {
+      profilesByModel.set(profile.model, profile);
+      profilesByProfile.set(profile.profile, profile);
+    }
+  }
   const sourceAgents =
     props.agentsList?.agents ??
     props.hybridResult?.agents.map((agent) => ({
@@ -143,6 +159,12 @@ export function summarizeHybridState(props: {
   const agents = sourceAgents.map((agent) => {
     const primary = modelPrimary(agent);
     const backend = backendAgentsById.get(agent.id);
+    const modelParts = (backend?.modelPrimary ?? primary)?.split("/") ?? [];
+    const providerModel = modelParts.length > 1 ? modelParts[1] : null;
+    const profileTelemetry =
+      profilesByProfile.get(backend?.hermesProfile ?? "") ??
+      profilesByModel.get(providerModel ?? agent.id) ??
+      null;
     const agentSessions = sessions.filter((row) => sessionAgentId(row) === agent.id);
     const lastActiveAt =
       agentSessions.reduce<number | null>((latest, row) => {
@@ -170,6 +192,11 @@ export function summarizeHybridState(props: {
       status: statusForAgent(agentSessions),
       usageTokens: usage.tokens,
       usageCost: usage.cost,
+      profileTelemetry,
+      recentRuns:
+        props.hybridResult?.runs.recent.filter((run) =>
+          run.agents.some((entry) => entry.agent === agent.id),
+        ) ?? [],
     } satisfies HybridAgentSummary;
   });
   const openclawNativeCost = toNumberOrZero(props.usageResult?.totals?.totalCost);
@@ -218,15 +245,16 @@ function renderStatusPill(status: HybridAgentStatus) {
 }
 
 function renderAgentCard(agent: HybridAgentSummary) {
+  const metrics = agent.profileTelemetry?.metrics;
   return html`
-    <article class="hybrid-agent">
-      <div class="hybrid-agent__topline">
+    <details class="hybrid-agent">
+      <summary class="hybrid-agent__summary">
         <div>
           <h3>${agent.name}</h3>
           <div class="hybrid-agent__id">${agent.role ?? agent.id}</div>
         </div>
         ${renderStatusPill(agent.status)}
-      </div>
+      </summary>
       <dl class="hybrid-agent__facts">
         <div>
           <dt>Routing ID</dt>
@@ -276,7 +304,86 @@ function renderAgentCard(agent: HybridAgentSummary) {
       ${agent.description
         ? html`<p class="hybrid-agent__description">${agent.description}</p>`
         : nothing}
-    </article>
+      <div class="hybrid-agent-detail">
+        <div>
+          <h4>Hermes Profile</h4>
+          <dl class="hybrid-agent__facts">
+            <div>
+              <dt>Profile</dt>
+              <dd>${agent.profileTelemetry?.profile ?? agent.hermesProfile ?? "n/a"}</dd>
+            </div>
+            <div>
+              <dt>Resume session</dt>
+              <dd>${agent.profileTelemetry?.sessionId ?? "none"}</dd>
+            </div>
+            <div>
+              <dt>Session files</dt>
+              <dd>${agent.profileTelemetry?.sessions.count ?? 0}</dd>
+            </div>
+            <div>
+              <dt>DB sessions</dt>
+              <dd>${metrics?.sessions ?? 0}</dd>
+            </div>
+            <div>
+              <dt>Messages</dt>
+              <dd>${metrics?.messages ?? 0}</dd>
+            </div>
+            <div>
+              <dt>Tool calls</dt>
+              <dd>${metrics?.toolCalls ?? 0}</dd>
+            </div>
+            <div>
+              <dt>Input tokens</dt>
+              <dd>${formatTokens(metrics?.inputTokens ?? 0)}</dd>
+            </div>
+            <div>
+              <dt>Output tokens</dt>
+              <dd>${formatTokens(metrics?.outputTokens ?? 0)}</dd>
+            </div>
+            <div>
+              <dt>Models seen</dt>
+              <dd>${metrics?.models?.join(", ") || "not reported"}</dd>
+            </div>
+            <div>
+              <dt>Billing labels</dt>
+              <dd>${metrics?.billingProviders?.join(", ") || "not reported"}</dd>
+            </div>
+          </dl>
+        </div>
+        <div>
+          <h4>Workflow Participation</h4>
+          ${agent.recentRuns.length > 0
+            ? html`<ul class="hybrid-agent-runs">
+                ${agent.recentRuns.slice(0, 4).map(
+                  (run) => html`
+                    <li>
+                      <strong>${run.taskId}</strong>
+                      <span>${run.workflow} · ${run.status}</span>
+                    </li>
+                  `,
+                )}
+              </ul>`
+            : html`<div class="muted">No recorded workflow participation yet.</div>`}
+        </div>
+        <div>
+          <h4>Operating Policy</h4>
+          <dl class="hybrid-agent__facts">
+            <div>
+              <dt>Memory owner</dt>
+              <dd>${agent.hermesBacked ? "Hermes" : "OpenClaw/unknown"}</dd>
+            </div>
+            <div>
+              <dt>Escalation</dt>
+              <dd>
+                ${agent.modelBudget === "tool-execution"
+                  ? "CEO review for risky tool work"
+                  : "CEO review for judgment or failure"}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </details>
   `;
 }
 

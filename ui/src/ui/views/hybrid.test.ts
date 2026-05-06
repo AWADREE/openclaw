@@ -155,7 +155,41 @@ describe("summarizeHybridState", () => {
             baseUrl: "http://127.0.0.1:18981/v1",
             agentIds: ["builder"],
             reachable: true,
-            health: { ok: true, models: ["builder"] },
+            health: {
+              ok: true,
+              models: ["builder"],
+              profiles: [
+                {
+                  model: "builder",
+                  profile: "zbuilder",
+                  name: "Owen Carter",
+                  sessionId: "20260506_builder",
+                  profileHomeExists: true,
+                  sessionFileExists: true,
+                  sessions: {
+                    count: 3,
+                    latestSessionId: "20260506_builder",
+                    latestSessionMtime: 1778097600,
+                  },
+                  metrics: {
+                    databaseExists: true,
+                    sessions: 2,
+                    messages: 12,
+                    toolCalls: 4,
+                    inputTokens: 1000,
+                    outputTokens: 200,
+                    models: ["gpt-5.4-mini"],
+                    billingProviders: ["openai-codex"],
+                  },
+                  log: {
+                    lastInvokeAt: 1778097500,
+                    lastCompleteAt: 1778097600,
+                    lastErrorAt: null,
+                    recentErrorCount: 0,
+                  },
+                },
+              ],
+            },
           },
         ],
         agents: [
@@ -196,7 +230,9 @@ describe("summarizeHybridState", () => {
       teamId: "engineering",
       hermesBacked: true,
       hermesProfile: "builder",
+      profileTelemetry: { profile: "zbuilder" },
     });
+    expect(summary.agents[0]?.recentRuns[0]?.taskId).toBe("password-cli");
     expect(summary.organization?.companies[0]?.name).toBe("Shared Services");
     expect(summary.runs?.recent[0]?.status).toBe("accepted");
     expect(summary.caveats).toContain("Hermes metrics bridge pending.");
