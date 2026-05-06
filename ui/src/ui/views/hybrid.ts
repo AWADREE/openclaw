@@ -248,6 +248,7 @@ function renderProvider(provider: HybridStatusResult["providers"][number]) {
       : provider.reachable === false
         ? html`<span class="hybrid-pill hybrid-pill--idle">Unavailable</span>`
         : html`<span class="hybrid-pill">Not probed</span>`;
+  const profiles = provider.health?.profiles ?? [];
   return html`
     <article class="hybrid-provider">
       <div class="hybrid-agent__topline">
@@ -271,10 +272,36 @@ function renderProvider(provider: HybridStatusResult["providers"][number]) {
           <dd>${provider.health?.models?.join(", ") || "not reported"}</dd>
         </div>
         <div>
+          <dt>Hermes profiles</dt>
+          <dd>${profiles.length || "not reported"}</dd>
+        </div>
+        <div>
           <dt>Error</dt>
           <dd>${provider.error ?? "none"}</dd>
         </div>
       </dl>
+      ${profiles.length > 0
+        ? html`
+            <div class="hybrid-profile-list">
+              ${profiles.map(
+                (profile) => html`
+                  <div class="hybrid-profile">
+                    <div>
+                      <strong>${profile.name}</strong>
+                      <span>${profile.model} -> ${profile.profile}</span>
+                    </div>
+                    <div>
+                      <span
+                        >${profile.sessionId ? "Resume session active" : "No resume session"}</span
+                      >
+                      <span>${profile.sessions.count} Hermes sessions</span>
+                    </div>
+                  </div>
+                `,
+              )}
+            </div>
+          `
+        : nothing}
     </article>
   `;
 }

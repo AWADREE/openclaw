@@ -40,7 +40,31 @@ describe("hybridHandlers", () => {
       "fetch",
       vi.fn(async () => ({
         ok: true,
-        json: async () => ({ ok: true, models: ["main", "builder"] }),
+        json: async () => ({
+          ok: true,
+          models: ["main", "builder"],
+          profiles: [
+            {
+              model: "builder",
+              profile: "zbuilder",
+              name: "Owen Carter",
+              sessionId: "20260506_builder",
+              profileHomeExists: true,
+              sessionFileExists: true,
+              sessions: {
+                count: 3,
+                latestSessionId: "20260506_builder",
+                latestSessionMtime: 1778097600,
+              },
+              log: {
+                lastInvokeAt: 1778097500,
+                lastCompleteAt: 1778097600,
+                lastErrorAt: null,
+                recentErrorCount: 0,
+              },
+            },
+          ],
+        }),
       })),
     );
     let payload: unknown = null;
@@ -61,7 +85,20 @@ describe("hybridHandlers", () => {
           kind: "hermes-worker",
           baseUrl: "http://127.0.0.1:18981/v1",
           reachable: true,
-          health: { ok: true, models: ["main", "builder"] },
+          health: {
+            ok: true,
+            models: ["main", "builder"],
+            profiles: [
+              {
+                model: "builder",
+                profile: "zbuilder",
+                name: "Owen Carter",
+                sessionId: "20260506_builder",
+                profileHomeExists: true,
+                sessionFileExists: true,
+              },
+            ],
+          },
           agentIds: ["builder"],
         },
       ],

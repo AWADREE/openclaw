@@ -10,8 +10,29 @@ type ProviderStatus = {
   health?: {
     ok?: boolean;
     models?: string[];
+    profiles?: AdapterProfileStatus[];
   };
   error?: string;
+};
+
+type AdapterProfileStatus = {
+  model: string;
+  profile: string;
+  name: string;
+  sessionId: string | null;
+  profileHomeExists: boolean;
+  sessionFileExists: boolean;
+  sessions: {
+    count: number;
+    latestSessionId: string | null;
+    latestSessionMtime: number | null;
+  };
+  log: {
+    lastInvokeAt: number | null;
+    lastCompleteAt: number | null;
+    lastErrorAt: number | null;
+    recentErrorCount: number;
+  };
 };
 
 type HybridAgentStatus = {
@@ -90,9 +111,56 @@ function healthUrlFromBaseUrl(baseUrl: string): string {
   return `${trimmed}/health`;
 }
 
+function asNumberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function asBoolean(value: unknown): boolean {
+  return value === true;
+}
+
+function parseAdapterProfiles(body: unknown): AdapterProfileStatus[] | undefined {
+  if (!isRecord(body) || !Array.isArray(body.profiles)) {
+    return undefined;
+  }
+  const profiles: AdapterProfileStatus[] = [];
+  for (const entry of body.profiles) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const model = asTrimmedString(entry.model);
+    const profile = asTrimmedString(entry.profile);
+    if (!model || !profile) {
+      continue;
+    }
+    const sessions = isRecord(entry.sessions) ? entry.sessions : {};
+    const log = isRecord(entry.log) ? entry.log : {};
+    profiles.push({
+      model,
+      profile,
+      name: asTrimmedString(entry.name) ?? profile,
+      sessionId: asTrimmedString(entry.sessionId),
+      profileHomeExists: asBoolean(entry.profileHomeExists),
+      sessionFileExists: asBoolean(entry.sessionFileExists),
+      sessions: {
+        count: asNumberOrNull(sessions.count) ?? 0,
+        latestSessionId: asTrimmedString(sessions.latestSessionId),
+        latestSessionMtime: asNumberOrNull(sessions.latestSessionMtime),
+      },
+      log: {
+        lastInvokeAt: asNumberOrNull(log.lastInvokeAt),
+        lastCompleteAt: asNumberOrNull(log.lastCompleteAt),
+        lastErrorAt: asNumberOrNull(log.lastErrorAt),
+        recentErrorCount: asNumberOrNull(log.recentErrorCount) ?? 0,
+      },
+    });
+  }
+  return profiles.length > 0 ? profiles : undefined;
+}
+
 async function probeProviderHealth(baseUrl: string | null): Promise<{
   reachable: boolean;
-  health?: { ok?: boolean; models?: string[] };
+  health?: { ok?: boolean; models?: string[]; profiles?: AdapterProfileStatus[] };
   error?: string;
 }> {
   if (!baseUrl) {
@@ -111,7 +179,7 @@ async function probeProviderHealth(baseUrl: string | null): Promise<{
         ? body.models.filter((entry): entry is string => typeof entry === "string")
         : undefined;
     const ok = isRecord(body) && typeof body.ok === "boolean" ? body.ok : undefined;
-    return { reachable: true, health: { ok, models } };
+    return { reachable: true, health: { ok, models, profiles: parseAdapterProfiles(body) } };
   } catch (err) {
     return { reachable: false, error: err instanceof Error ? err.message : String(err) };
   } finally {

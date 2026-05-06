@@ -7,6 +7,7 @@
 .hybrid-hero,
 .hybrid-panel,
 .hybrid-agent,
+.hybrid-provider,
 .hybrid-metric {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -136,6 +137,34 @@
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
   margin-top: 12px;
+}
+
+.hybrid-profile-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.hybrid-profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hybrid-profile div {
+  display: grid;
+  gap: 2px;
+}
+
+.hybrid-profile strong {
+  color: var(--text);
+  font-size: 13px;
 }
 
 .hybrid-agent__facts div,

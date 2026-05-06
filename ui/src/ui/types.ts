@@ -355,6 +355,25 @@ export type HybridStatusResult = {
     health?: {
       ok?: boolean;
       models?: string[];
+      profiles?: Array<{
+        model: string;
+        profile: string;
+        name: string;
+        sessionId: string | null;
+        profileHomeExists: boolean;
+        sessionFileExists: boolean;
+        sessions: {
+          count: number;
+          latestSessionId: string | null;
+          latestSessionMtime: number | null;
+        };
+        log: {
+          lastInvokeAt: number | null;
+          lastCompleteAt: number | null;
+          lastErrorAt: number | null;
+          recentErrorCount: number;
+        };
+      }>;
     };
     error?: string;
   }>;
