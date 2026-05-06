@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "systemName": "Z Claw",
+  "generatedBy": "manual-seed",
+  "companies": [
+    {
+      "id": "shared",
+      "name": "Shared Services",
+      "kind": "shared",
+      "mission": "Reusable teams that can serve every Z Claw company.",
+      "teamIds": ["executive", "planning", "research", "engineering", "qa", "reporting"]
+    },
+    {
+      "id": "software-studio",
+      "name": "Z Claw Software Studio",
+      "kind": "company",
+      "mission": "Build, test, and maintain software artifacts.",
+      "teamIds": ["engineering", "qa", "reporting"]
+    },
+    {
+      "id": "game-studio",
+      "name": "Z Claw Game Studio",
+      "kind": "company",
+      "mission": "Create games, tools, gameplay systems, and design assets.",
+      "teamIds": ["research", "engineering", "qa", "reporting"]
+    },
+    {
+      "id": "publishing-studio",
+      "name": "Z Claw Publishing Studio",
+      "kind": "company",
+      "mission": "Plan, write, edit, and package books and long-form writing.",
+      "teamIds": ["research", "reporting"]
+    },
+    {
+      "id": "media-studio",
+      "name": "Z Claw Media Studio",
+      "kind": "company",
+      "mission": "Research, script, and package video and short-form media.",
+      "teamIds": ["research", "reporting"]
+    }
+  ],
+  "teams": [
+    {
+      "id": "executive",
+      "name": "Executive",
+      "scope": "shared",
+      "mission": "User-facing command, final review, durable-memory decisions, and escalation.",
+      "agentIds": ["main"]
+    },
+    {
+      "id": "planning",
+      "name": "Planning",
+      "scope": "shared",
+      "mission": "Decompose user goals into executable task packets.",
+      "agentIds": ["planner"]
+    },
+    {
+      "id": "research",
+      "name": "Research",
+      "scope": "shared",
+      "mission": "Gather evidence and source-backed context.",
+      "agentIds": ["researcher"]
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "scope": "shared",
+      "mission": "Implement scoped software changes and produce build evidence.",
+      "agentIds": ["builder"]
+    },
+    {
+      "id": "qa",
+      "name": "Quality Assurance",
+      "scope": "shared",
+      "mission": "Verify artifacts against acceptance criteria.",
+      "agentIds": ["qa-tester"]
+    },
+    {
+      "id": "reporting",
+      "name": "Reporting",
+      "scope": "shared",
+      "mission": "Normalize worker outputs and prepare operational reports.",
+      "agentIds": ["reporter"]
+    }
+  ],
+  "agents": [
+    {
+      "id": "main",
+      "name": "Zayne Clawson",
+      "role": "CEO Agent",
+      "companyScope": "shared",
+      "teamId": "executive",
+      "hermesProfile": "default",
+      "defaultModel": "openai-codex/gpt-5.5",
+      "modelBudget": "ceo-review",
+      "toolUse": "review-and-orchestration",
+      "memoryOwner": "hermes",
+      "description": "Central user-facing agent, final reviewer, and durable-memory gate."
+    },
+    {
+      "id": "planner",
+      "name": "Eleanor Brooks",
+      "role": "Workflow Planner",
+      "companyScope": "shared",
+      "teamId": "planning",
+      "hermesProfile": "zplanner",
+      "defaultModel": "ollama-lan/qwen3.5:9b",
+      "modelBudget": "local-default",
+      "toolUse": "planning",
+      "memoryOwner": "hermes",
+      "description": "Creates task packets with dependencies, acceptance criteria, and escalation triggers."
+    },
+    {
+      "id": "researcher",
+      "name": "Clara Whitfield",
+      "role": "Research Analyst",
+      "companyScope": "shared",
+      "teamId": "research",
+      "hermesProfile": "zresearcher",
+      "defaultModel": "ollama-lan/qwen3.5:9b",
+      "modelBudget": "local-default",
+      "toolUse": "research",
+      "memoryOwner": "hermes",
+      "description": "Gathers source-backed context and separates verified from unverified claims."
+    },
+    {
+      "id": "builder",
+      "name": "Owen Carter",
+      "role": "Software Coder",
+      "companyScope": "shared",
+      "teamId": "engineering",
+      "hermesProfile": "zbuilder",
+      "defaultModel": "openai-codex/gpt-5.4-mini",
+      "modelBudget": "tool-execution",
+      "toolUse": "filesystem-and-tests",
+      "memoryOwner": "hermes",
+      "description": "Owns scoped implementation work and returns verifiable build evidence."
+    },
+    {
+      "id": "qa-tester",
+      "name": "Maya Bennett",
+      "role": "QA Analyst",
+      "companyScope": "shared",
+      "teamId": "qa",
+      "hermesProfile": "zqa",
+      "defaultModel": "openai-codex/gpt-5.4-mini",
+      "modelBudget": "tool-execution",
+      "toolUse": "verification",
+      "memoryOwner": "hermes",
+      "description": "Verifies artifacts against acceptance criteria and reports residual risk."
+    },
+    {
+      "id": "reporter",
+      "name": "Nathan Reed",
+      "role": "Operations Reporter",
+      "companyScope": "shared",
+      "teamId": "reporting",
+      "hermesProfile": "zreporter",
+      "defaultModel": "ollama-lan/qwen3.5:9b",
+      "modelBudget": "local-default",
+      "toolUse": "reporting",
+      "memoryOwner": "hermes",
+      "description": "Summarizes workflow evidence and formats final operational reports."
+    }
+  ]
+}

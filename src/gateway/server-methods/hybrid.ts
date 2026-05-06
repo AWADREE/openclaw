@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { listAgentsForGateway } from "../session-utils.js";
 import type { GatewayRequestHandlers } from "./types.js";
@@ -244,15 +245,44 @@ function asStringArray(value: unknown): string[] {
     .filter((entry): entry is string => Boolean(entry));
 }
 
+function firstExistingDirectory(candidates: string[]): string {
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return candidates[0] ?? "/home/z/Claw";
+}
+
+function zClawSourceRoot(): string {
+  const configured = process.env.Z_CLAW_ROOT?.trim();
+  if (configured) {
+    return configured;
+  }
+  return firstExistingDirectory([
+    `${process.cwd()}/z-claw`,
+    "/home/z/openclaw-hybrid/z-claw",
+    "/home/z/Claw",
+  ]);
+}
+
+function zClawRuntimeRoot(): string {
+  const configured = process.env.Z_CLAW_RUNTIME_ROOT?.trim();
+  if (configured) {
+    return configured;
+  }
+  return firstExistingDirectory(["/home/z/Claw", `${zClawSourceRoot()}/runtime`]);
+}
+
 function organizationPath(): string {
   return (
     process.env.Z_CLAW_ORGANIZATION_PATH?.trim() ||
-    "/home/z/Claw/integration/zclaw_organization.json"
+    `${zClawSourceRoot()}/integration/zclaw_organization.json`
   );
 }
 
 function runsRoot(): string {
-  return process.env.Z_CLAW_RUNS_ROOT?.trim() || "/home/z/Claw/workspace/runs";
+  return process.env.Z_CLAW_RUNS_ROOT?.trim() || `${zClawRuntimeRoot()}/workspace/runs`;
 }
 
 function parseOrganizationAgent(entry: unknown): OrganizationAgent | null {

@@ -1,0 +1,18 @@
+[Unit]
+Description=Hermes worker adapter for OpenClaw
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/z/openclaw-hybrid/z-claw/integration/hermes_worker_adapter.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=HERMES_WORKER_ADAPTER_HOST=127.0.0.1
+Environment=HERMES_WORKER_ADAPTER_PORT=18981
+Environment=HERMES_WORKER_ADAPTER_LOG=/home/z/Claw/integration/hermes_worker_adapter.log
+Environment=HERMES_WORKER_ADAPTER_STATE=/home/z/Claw/integration/hermes_worker_adapter_state
+WorkingDirectory=/home/z
+
+[Install]
+WantedBy=default.target

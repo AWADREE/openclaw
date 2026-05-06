@@ -218,5 +218,20 @@ extensions/**/.openclaw-runtime-deps.json
 extensions/**/.openclaw-runtime-deps-stamp.json
 
 # Output dir for scripts/run-opengrep.sh (local opengrep scans)
+
+# Z-Claw integration layer: keep source in git, keep runtime state/secrets out.
+z-claw/**/*.log
+z-claw/**/*.session
+z-claw/**/state.db*
+z-claw/**/__pycache__/
+z-claw/**/*.pyc
+z-claw/**/.env
+z-claw/**/auth.json
+z-claw/**/gateway_state.json
+z-claw/**/discord_threads.json
+z-claw/**/channel_directory.json
+z-claw/workspace/runs/
+z-claw/integration/hermes_worker_adapter_state/
+z-claw/examples/tools/*.json
 /.opengrep-out/
 /.crabbox-artifacts

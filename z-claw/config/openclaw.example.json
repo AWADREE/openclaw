@@ -1,0 +1,139 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "/home/z/Claw/workspace",
+      "model": {
+        "primary": "hermes-workers/main",
+        "fallbacks": []
+      },
+      "models": {
+        "hermes-workers/main": { "alias": "ceo" },
+        "hermes-workers/planner": { "alias": "Eleanor Brooks" },
+        "hermes-workers/builder": { "alias": "Owen Carter" },
+        "hermes-workers/researcher": { "alias": "Clara Whitfield" },
+        "hermes-workers/reporter": { "alias": "Nathan Reed" },
+        "hermes-workers/qa-tester": { "alias": "Maya Bennett" }
+      },
+      "thinkingDefault": "low",
+      "reasoningDefault": "off",
+      "verboseDefault": "off",
+      "timeoutSeconds": 900,
+      "maxConcurrent": 4
+    },
+    "list": [
+      {
+        "id": "main",
+        "workspace": "/home/z/Claw/workspace",
+        "model": { "primary": "hermes-workers/main", "fallbacks": [] }
+      },
+      {
+        "id": "planner",
+        "workspace": "/home/z/Claw/agents/planner",
+        "model": { "primary": "hermes-workers/planner", "fallbacks": [] }
+      },
+      {
+        "id": "builder",
+        "workspace": "/home/z/Claw/agents/builder",
+        "model": { "primary": "hermes-workers/builder", "fallbacks": [] }
+      },
+      {
+        "id": "researcher",
+        "workspace": "/home/z/Claw/agents/researcher",
+        "model": { "primary": "hermes-workers/researcher", "fallbacks": [] }
+      },
+      {
+        "id": "reporter",
+        "workspace": "/home/z/Claw/agents/reporter",
+        "model": { "primary": "hermes-workers/reporter", "fallbacks": [] }
+      },
+      {
+        "id": "qa-tester",
+        "workspace": "/home/z/Claw/agents/qa-tester",
+        "model": { "primary": "hermes-workers/qa-tester", "fallbacks": [] }
+      }
+    ]
+  },
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "hermes-workers": {
+        "baseUrl": "http://127.0.0.1:18981/v1",
+        "apiKey": "hermes-local",
+        "api": "openai-completions",
+        "timeoutSeconds": 900,
+        "request": { "allowPrivateNetwork": true },
+        "models": [
+          {
+            "id": "main",
+            "name": "Hermes Main CEO",
+            "reasoning": true,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 200000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "planner",
+            "name": "Eleanor Brooks - Workflow Planner",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 65536,
+            "maxTokens": 4096
+          },
+          {
+            "id": "builder",
+            "name": "Owen Carter - Software Coder",
+            "reasoning": true,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 200000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "researcher",
+            "name": "Clara Whitfield - Research Analyst",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 65536,
+            "maxTokens": 4096
+          },
+          {
+            "id": "reporter",
+            "name": "Nathan Reed - Operations Reporter",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 65536,
+            "maxTokens": 4096
+          },
+          {
+            "id": "qa-tester",
+            "name": "Maya Bennett - QA Analyst",
+            "reasoning": true,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 200000,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token",
+      "token": "REPLACE_WITH_LOCAL_GATEWAY_TOKEN"
+    },
+    "port": 18789,
+    "bind": "custom",
+    "customBindHost": "127.0.0.1",
+    "controlUi": {
+      "allowedOrigins": ["http://localhost:18789", "http://127.0.0.1:18789"]
+    }
+  },
+  "session": { "dmScope": "per-channel-peer" },
+  "tools": { "profile": "coding" }
+}
