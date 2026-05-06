@@ -1,3 +1,6 @@
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hybridHandlers } from "./hybrid.js";
 import type { GatewayRequestHandlerOptions } from "./types.js";
@@ -36,6 +39,34 @@ describe("hybridHandlers", () => {
   });
 
   it("returns sanitized Hermes worker telemetry", async () => {
+    const runsRoot = await mkdtemp(join(tmpdir(), "openclaw-hybrid-runs-"));
+    const runDir = join(runsRoot, "software_change_small", "20260506-193546-password-cli");
+    await mkdir(runDir, { recursive: true });
+    await writeFile(
+      join(runDir, "manifest.json"),
+      JSON.stringify({
+        run_id: "20260506-193546-password-cli",
+        workflow: "software_change_small",
+        task_id: "password-cli",
+        objective: "Create password CLI.",
+        status: "accepted",
+        created_at: "2026-05-06T16:35:46Z",
+        updated_at: "2026-05-06T16:46:23Z",
+        durable_memory_used: false,
+        agents: [{ agent: "builder", role: "engineering", model: "gpt-5.4-mini" }],
+        artifacts: [
+          {
+            path: "/home/z/Claw/workspace/tools/password_cli.py",
+            kind: "implementation",
+            agent: "builder",
+          },
+        ],
+        decisions: [{ decision: "accept", reason: "verified" }],
+        workflow_deviations: [],
+      }),
+      "utf8",
+    );
+    vi.stubEnv("Z_CLAW_RUNS_ROOT", runsRoot);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -112,6 +143,18 @@ describe("hybridHandlers", () => {
           memoryOwner: "hermes",
         },
       ],
+      runs: {
+        root: runsRoot,
+        total: 1,
+        recent: [
+          {
+            runId: "20260506-193546-password-cli",
+            workflow: "software_change_small",
+            taskId: "password-cli",
+            status: "accepted",
+          },
+        ],
+      },
     });
     expect(JSON.stringify(payload)).not.toContain("must-not-be-returned");
   });

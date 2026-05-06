@@ -9,6 +9,7 @@
 .hybrid-agent,
 .hybrid-provider,
 .hybrid-company,
+.hybrid-run,
 .hybrid-metric {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -186,6 +187,49 @@
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 4px 8px;
+}
+
+.hybrid-run-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hybrid-runs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.hybrid-run {
+  padding: 14px;
+}
+
+.hybrid-run__topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hybrid-run h4 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.hybrid-run span,
+.hybrid-run p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hybrid-run p {
+  margin: 10px 0 0;
+  line-height: 1.45;
 }
 
 .hybrid-profile-list {

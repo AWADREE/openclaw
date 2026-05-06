@@ -44,6 +44,7 @@ export type HybridSummary = {
   agents: HybridAgentSummary[];
   providers: HybridStatusResult["providers"];
   organization: HybridStatusResult["organization"];
+  runs: HybridStatusResult["runs"] | null;
   caveats: string[];
 };
 
@@ -196,6 +197,7 @@ export function summarizeHybridState(props: {
     agents,
     providers: props.hybridResult?.providers ?? [],
     organization: props.hybridResult?.organization ?? null,
+    runs: props.hybridResult?.runs ?? null,
     caveats,
   };
 }
@@ -304,6 +306,80 @@ function renderOrganization(organization: HybridStatusResult["organization"]) {
                 `,
               )}
             </div>
+          </article>
+        `,
+      )}
+    </div>
+  `;
+}
+
+function renderRunStatus(status: string) {
+  const normalized = status.toLowerCase();
+  const pillStatus =
+    normalized === "accepted" || normalized === "verified"
+      ? "active"
+      : normalized === "blocked" || normalized === "rejected"
+        ? "idle"
+        : "unknown";
+  return html`<span class="hybrid-pill hybrid-pill--${pillStatus}">${status}</span>`;
+}
+
+function renderRuns(runs: HybridStatusResult["runs"] | null) {
+  if (!runs) {
+    return html`<div class="muted" style="margin-top: 12px">
+      No Z-Claw run ledger is available yet.
+    </div>`;
+  }
+  if (runs.recent.length === 0) {
+    return html`<div class="muted" style="margin-top: 12px">
+      No workflow runs have been recorded under ${runs.root}.
+    </div>`;
+  }
+  return html`
+    <div class="hybrid-run-summary">
+      <span>${runs.total} total runs</span>
+      <span>${runs.root}</span>
+    </div>
+    <div class="hybrid-runs">
+      ${runs.recent.map(
+        (run) => html`
+          <article class="hybrid-run">
+            <div class="hybrid-run__topline">
+              <div>
+                <h4>${run.taskId}</h4>
+                <span>${run.workflow} · ${run.runId}</span>
+              </div>
+              ${renderRunStatus(run.status)}
+            </div>
+            ${run.objective ? html`<p>${run.objective}</p>` : nothing}
+            <dl class="hybrid-agent__facts">
+              <div>
+                <dt>Updated</dt>
+                <dd>
+                  ${run.updatedAt ? formatRelativeTimestamp(Date.parse(run.updatedAt)) : "unknown"}
+                </dd>
+              </div>
+              <div>
+                <dt>Agents</dt>
+                <dd>${run.agents.length}</dd>
+              </div>
+              <div>
+                <dt>Artifacts</dt>
+                <dd>${run.artifacts.length}</dd>
+              </div>
+              <div>
+                <dt>Memory</dt>
+                <dd>${run.durableMemoryUsed ? "durable write used" : "not used"}</dd>
+              </div>
+              <div>
+                <dt>Decision</dt>
+                <dd>${run.decisions[0]?.decision ?? "none"}</dd>
+              </div>
+              <div>
+                <dt>Deviations</dt>
+                <dd>${run.workflowDeviations.length}</dd>
+              </div>
+            </dl>
           </article>
         `,
       )}
@@ -467,6 +543,11 @@ export function renderHybrid(props: HybridProps) {
       <section class="hybrid-panel">
         <h3>Companies and Teams</h3>
         ${renderOrganization(summary.organization)}
+      </section>
+
+      <section class="hybrid-panel">
+        <h3>Workflow Runs</h3>
+        ${renderRuns(summary.runs)}
       </section>
 
       <section class="hybrid-panel">

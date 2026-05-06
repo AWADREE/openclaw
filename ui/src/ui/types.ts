@@ -370,6 +370,42 @@ export type HybridStatusResult = {
       agentIds: string[];
     }>;
   } | null;
+  runs: {
+    root: string;
+    total: number;
+    recent: Array<{
+      runId: string;
+      workflow: string;
+      taskId: string;
+      objective: string | null;
+      status: string;
+      createdAt: string | null;
+      updatedAt: string | null;
+      durableMemoryUsed: boolean;
+      runDir: string;
+      agents: Array<{
+        agent: string;
+        role: string | null;
+        model: string | null;
+        note: string | null;
+      }>;
+      artifacts: Array<{
+        path: string;
+        kind: string;
+        agent: string | null;
+        note: string | null;
+      }>;
+      decisions: Array<{
+        decision: string;
+        reason: string | null;
+      }>;
+      workflowDeviations: Array<{
+        deviation: string;
+        reason: string | null;
+      }>;
+    }>;
+    error?: string;
+  };
   providers: Array<{
     id: string;
     kind: "hermes-worker" | "model-provider";

@@ -117,6 +117,37 @@ describe("summarizeHybridState", () => {
             },
           ],
         },
+        runs: {
+          root: "/home/z/Claw/workspace/runs",
+          total: 1,
+          recent: [
+            {
+              runId: "20260506-193546-password-cli",
+              workflow: "software_change_small",
+              taskId: "password-cli",
+              objective: "Create password CLI.",
+              status: "accepted",
+              createdAt: "2026-05-06T16:35:46Z",
+              updatedAt: "2026-05-06T16:46:23Z",
+              durableMemoryUsed: false,
+              runDir:
+                "/home/z/Claw/workspace/runs/software_change_small/20260506-193546-password-cli",
+              agents: [
+                { agent: "builder", role: "engineering", model: "gpt-5.4-mini", note: null },
+              ],
+              artifacts: [
+                {
+                  path: "/home/z/Claw/workspace/tools/password_cli.py",
+                  kind: "implementation",
+                  agent: "builder",
+                  note: "Builder-created password CLI",
+                },
+              ],
+              decisions: [{ decision: "accept", reason: "verified" }],
+              workflowDeviations: [],
+            },
+          ],
+        },
         providers: [
           {
             id: "hermes-workers",
@@ -167,6 +198,7 @@ describe("summarizeHybridState", () => {
       hermesProfile: "builder",
     });
     expect(summary.organization?.companies[0]?.name).toBe("Shared Services");
+    expect(summary.runs?.recent[0]?.status).toBe("accepted");
     expect(summary.caveats).toContain("Hermes metrics bridge pending.");
   });
 });

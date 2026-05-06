@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { listAgentsForGateway } from "../session-utils.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
@@ -72,10 +72,48 @@ type HybridAgentStatus = {
   description: string | null;
 };
 
+type HybridRunSummary = {
+  runId: string;
+  workflow: string;
+  taskId: string;
+  objective: string | null;
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  durableMemoryUsed: boolean;
+  runDir: string;
+  agents: Array<{
+    agent: string;
+    role: string | null;
+    model: string | null;
+    note: string | null;
+  }>;
+  artifacts: Array<{
+    path: string;
+    kind: string;
+    agent: string | null;
+    note: string | null;
+  }>;
+  decisions: Array<{
+    decision: string;
+    reason: string | null;
+  }>;
+  workflowDeviations: Array<{
+    deviation: string;
+    reason: string | null;
+  }>;
+};
+
 export type HybridStatusResult = {
   ok: true;
   generatedAt: number;
   organization: HybridOrganization | null;
+  runs: {
+    root: string;
+    total: number;
+    recent: HybridRunSummary[];
+    error?: string;
+  };
   providers: ProviderStatus[];
   agents: HybridAgentStatus[];
   telemetry: {
@@ -213,6 +251,10 @@ function organizationPath(): string {
   );
 }
 
+function runsRoot(): string {
+  return process.env.Z_CLAW_RUNS_ROOT?.trim() || "/home/z/Claw/workspace/runs";
+}
+
 function parseOrganizationAgent(entry: unknown): OrganizationAgent | null {
   if (!isRecord(entry)) {
     return null;
@@ -343,6 +385,151 @@ async function readOrganization(): Promise<{
   }
 }
 
+function parseManifestItems(value: unknown, kind: "agents"): HybridRunSummary["agents"];
+function parseManifestItems(value: unknown, kind: "artifacts"): HybridRunSummary["artifacts"];
+function parseManifestItems(value: unknown, kind: "decisions"): HybridRunSummary["decisions"];
+function parseManifestItems(
+  value: unknown,
+  kind: "workflowDeviations",
+): HybridRunSummary["workflowDeviations"];
+function parseManifestItems(value: unknown, kind: string): unknown[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: unknown[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    if (kind === "agents") {
+      const agent = asTrimmedString(entry.agent);
+      if (!agent) {
+        continue;
+      }
+      out.push({
+        agent,
+        role: asTrimmedString(entry.role),
+        model: asTrimmedString(entry.model),
+        note: asTrimmedString(entry.note),
+      });
+    } else if (kind === "artifacts") {
+      const path = asTrimmedString(entry.path);
+      const artifactKind = asTrimmedString(entry.kind);
+      if (!path || !artifactKind) {
+        continue;
+      }
+      out.push({
+        path,
+        kind: artifactKind,
+        agent: asTrimmedString(entry.agent),
+        note: asTrimmedString(entry.note),
+      });
+    } else if (kind === "decisions") {
+      const decision = asTrimmedString(entry.decision);
+      if (!decision) {
+        continue;
+      }
+      out.push({
+        decision,
+        reason: asTrimmedString(entry.reason),
+      });
+    } else if (kind === "workflowDeviations") {
+      const deviation = asTrimmedString(entry.deviation);
+      if (!deviation) {
+        continue;
+      }
+      out.push({
+        deviation,
+        reason: asTrimmedString(entry.reason),
+      });
+    }
+  }
+  return out;
+}
+
+function parseRunManifest(body: unknown, runDir: string): HybridRunSummary | null {
+  if (!isRecord(body)) {
+    return null;
+  }
+  const runId = asTrimmedString(body.run_id);
+  const workflow = asTrimmedString(body.workflow);
+  const taskId = asTrimmedString(body.task_id);
+  const status = asTrimmedString(body.status);
+  if (!runId || !workflow || !taskId || !status) {
+    return null;
+  }
+  return {
+    runId,
+    workflow,
+    taskId,
+    objective: asTrimmedString(body.objective),
+    status,
+    createdAt: asTrimmedString(body.created_at),
+    updatedAt: asTrimmedString(body.updated_at),
+    durableMemoryUsed: body.durable_memory_used === true,
+    runDir,
+    agents: parseManifestItems(body.agents, "agents"),
+    artifacts: parseManifestItems(body.artifacts, "artifacts"),
+    decisions: parseManifestItems(body.decisions, "decisions"),
+    workflowDeviations: parseManifestItems(body.workflow_deviations, "workflowDeviations"),
+  };
+}
+
+function runUpdatedAt(run: HybridRunSummary): number {
+  const parsed = Date.parse(run.updatedAt ?? run.createdAt ?? "");
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function readRunLedger(): Promise<{
+  root: string;
+  total: number;
+  recent: HybridRunSummary[];
+  error?: string;
+}> {
+  const root = runsRoot();
+  const runs: HybridRunSummary[] = [];
+  try {
+    const workflows = await readdir(root, { withFileTypes: true });
+    for (const workflowEntry of workflows) {
+      if (!workflowEntry.isDirectory()) {
+        continue;
+      }
+      const workflowDir = `${root}/${workflowEntry.name}`;
+      const runEntries = await readdir(workflowDir, { withFileTypes: true });
+      for (const runEntry of runEntries) {
+        if (!runEntry.isDirectory()) {
+          continue;
+        }
+        const runDir = `${workflowDir}/${runEntry.name}`;
+        try {
+          const raw = await readFile(`${runDir}/manifest.json`, "utf8");
+          const run = parseRunManifest(JSON.parse(raw) as unknown, runDir);
+          if (run) {
+            runs.push(run);
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+  } catch (err) {
+    const code = isRecord(err) && typeof err.code === "string" ? err.code : null;
+    return {
+      root,
+      total: 0,
+      recent: [],
+      error:
+        code === "ENOENT" ? "run ledger missing" : err instanceof Error ? err.message : String(err),
+    };
+  }
+  runs.sort((a, b) => runUpdatedAt(b) - runUpdatedAt(a));
+  return {
+    root,
+    total: runs.length,
+    recent: runs.slice(0, 12),
+  };
+}
+
 function parseAdapterProfiles(body: unknown): AdapterProfileStatus[] | undefined {
   if (!isRecord(body) || !Array.isArray(body.profiles)) {
     return undefined;
@@ -452,6 +639,7 @@ export const hybridHandlers: GatewayRequestHandlers = {
   "hybrid.status": async ({ context, respond }) => {
     const cfg = context.getRuntimeConfig();
     const organization = await readOrganization();
+    const runs = await readRunLedger();
     const providers = readProviders(cfg);
     const agentRows = listAgentsForGateway(cfg).agents;
     const agents = agentRows.map((agent) => {
@@ -536,10 +724,14 @@ export const hybridHandlers: GatewayRequestHandlers = {
     if (organization.error) {
       caveats.push(`Z-Claw organization registry: ${organization.error}.`);
     }
+    if (runs.error) {
+      caveats.push(`Z-Claw run ledger: ${runs.error}.`);
+    }
     respond(true, {
       ok: true,
       generatedAt: Date.now(),
       organization: organization.organization,
+      runs,
       providers: providerStatuses,
       agents: finalAgents,
       telemetry: {
