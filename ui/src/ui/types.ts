@@ -367,6 +367,24 @@ export type HybridStatusResult = {
           latestSessionId: string | null;
           latestSessionMtime: number | null;
         };
+        metrics?: {
+          databaseExists: boolean;
+          sessions?: number;
+          messages?: number;
+          toolCalls?: number;
+          inputTokens?: number;
+          outputTokens?: number;
+          reasoningTokens?: number;
+          cacheReadTokens?: number;
+          cacheWriteTokens?: number;
+          estimatedCostUsd?: number;
+          actualCostUsd?: number;
+          models?: string[];
+          billingProviders?: string[];
+          lastStartedAt?: number | null;
+          lastEndedAt?: number | null;
+          error?: string;
+        };
         log: {
           lastInvokeAt: number | null;
           lastCompleteAt: number | null;

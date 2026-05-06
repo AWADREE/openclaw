@@ -27,6 +27,24 @@ type AdapterProfileStatus = {
     latestSessionId: string | null;
     latestSessionMtime: number | null;
   };
+  metrics?: {
+    databaseExists: boolean;
+    sessions?: number;
+    messages?: number;
+    toolCalls?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    reasoningTokens?: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
+    estimatedCostUsd?: number;
+    actualCostUsd?: number;
+    models?: string[];
+    billingProviders?: string[];
+    lastStartedAt?: number | null;
+    lastEndedAt?: number | null;
+    error?: string;
+  };
   log: {
     lastInvokeAt: number | null;
     lastCompleteAt: number | null;
@@ -142,6 +160,7 @@ function parseAdapterProfiles(body: unknown): AdapterProfileStatus[] | undefined
       continue;
     }
     const sessions = isRecord(entry.sessions) ? entry.sessions : {};
+    const metrics = isRecord(entry.metrics) ? entry.metrics : null;
     const log = isRecord(entry.log) ? entry.log : {};
     profiles.push({
       model,
@@ -155,6 +174,30 @@ function parseAdapterProfiles(body: unknown): AdapterProfileStatus[] | undefined
         latestSessionId: asTrimmedString(sessions.latestSessionId),
         latestSessionMtime: asNumberOrNull(sessions.latestSessionMtime),
       },
+      metrics: metrics
+        ? {
+            databaseExists: asBoolean(metrics.databaseExists),
+            sessions: asNumberOrNull(metrics.sessions) ?? undefined,
+            messages: asNumberOrNull(metrics.messages) ?? undefined,
+            toolCalls: asNumberOrNull(metrics.toolCalls) ?? undefined,
+            inputTokens: asNumberOrNull(metrics.inputTokens) ?? undefined,
+            outputTokens: asNumberOrNull(metrics.outputTokens) ?? undefined,
+            reasoningTokens: asNumberOrNull(metrics.reasoningTokens) ?? undefined,
+            cacheReadTokens: asNumberOrNull(metrics.cacheReadTokens) ?? undefined,
+            cacheWriteTokens: asNumberOrNull(metrics.cacheWriteTokens) ?? undefined,
+            estimatedCostUsd: asNumberOrNull(metrics.estimatedCostUsd) ?? undefined,
+            actualCostUsd: asNumberOrNull(metrics.actualCostUsd) ?? undefined,
+            models: Array.isArray(metrics.models)
+              ? metrics.models.filter((item): item is string => typeof item === "string")
+              : undefined,
+            billingProviders: Array.isArray(metrics.billingProviders)
+              ? metrics.billingProviders.filter((item): item is string => typeof item === "string")
+              : undefined,
+            lastStartedAt: asNumberOrNull(metrics.lastStartedAt),
+            lastEndedAt: asNumberOrNull(metrics.lastEndedAt),
+            error: asTrimmedString(metrics.error) ?? undefined,
+          }
+        : undefined,
       log: {
         lastInvokeAt: asNumberOrNull(log.lastInvokeAt),
         lastCompleteAt: asNumberOrNull(log.lastCompleteAt),

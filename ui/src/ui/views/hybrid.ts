@@ -294,7 +294,13 @@ function renderProvider(provider: HybridStatusResult["providers"][number]) {
                       <span
                         >${profile.sessionId ? "Resume session active" : "No resume session"}</span
                       >
-                      <span>${profile.sessions.count} Hermes sessions</span>
+                      <span
+                        >${profile.sessions.count} files, ${profile.metrics?.sessions ?? 0} DB
+                        sessions</span
+                      >
+                      <span>${formatTokens(profile.metrics?.inputTokens ?? 0)} input tokens</span>
+                      <span>${formatTokens(profile.metrics?.outputTokens ?? 0)} output tokens</span>
+                      <span>${formatCost(profile.metrics?.estimatedCostUsd ?? 0)} estimated</span>
                     </div>
                   </div>
                 `,
