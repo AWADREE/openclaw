@@ -431,6 +431,29 @@ function renderRunStatus(status: string) {
   return html`<span class="hybrid-pill hybrid-pill--${pillStatus}">${status}</span>`;
 }
 
+function renderRunList<T>(
+  items: T[],
+  emptyText: string,
+  renderItem: (item: T) => unknown,
+  limit = 8,
+) {
+  if (items.length === 0) {
+    return html`<div class="muted">No ${emptyText} recorded.</div>`;
+  }
+  const visible = items.slice(0, limit);
+  return html`
+    <ul class="hybrid-run-list">
+      ${visible.map(renderItem)}
+      ${items.length > visible.length
+        ? html`<li>
+            <strong>${items.length - visible.length} more</strong>
+            <span>Open the run directory for the full manifest.</span>
+          </li>`
+        : nothing}
+    </ul>
+  `;
+}
+
 function renderRuns(runs: HybridStatusResult["runs"] | null) {
   if (!runs) {
     return html`<div class="muted" style="margin-top: 12px">
@@ -450,14 +473,14 @@ function renderRuns(runs: HybridStatusResult["runs"] | null) {
     <div class="hybrid-runs">
       ${runs.recent.map(
         (run) => html`
-          <article class="hybrid-run">
-            <div class="hybrid-run__topline">
+          <details class="hybrid-run">
+            <summary class="hybrid-run__summary">
               <div>
                 <h4>${run.taskId}</h4>
                 <span>${run.workflow} · ${run.runId}</span>
               </div>
               ${renderRunStatus(run.status)}
-            </div>
+            </summary>
             ${run.objective ? html`<p>${run.objective}</p>` : nothing}
             <dl class="hybrid-agent__facts">
               <div>
@@ -487,7 +510,98 @@ function renderRuns(runs: HybridStatusResult["runs"] | null) {
                 <dd>${run.workflowDeviations.length}</dd>
               </div>
             </dl>
-          </article>
+            <div class="hybrid-run-detail">
+              <section>
+                <h4>Run Ledger</h4>
+                <dl class="hybrid-agent__facts">
+                  <div>
+                    <dt>Run directory</dt>
+                    <dd>${run.runDir}</dd>
+                  </div>
+                  <div>
+                    <dt>Created</dt>
+                    <dd>
+                      ${run.createdAt
+                        ? formatRelativeTimestamp(Date.parse(run.createdAt))
+                        : "unknown"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Updated</dt>
+                    <dd>
+                      ${run.updatedAt
+                        ? formatRelativeTimestamp(Date.parse(run.updatedAt))
+                        : "unknown"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Manifest status</dt>
+                    <dd>${run.status}</dd>
+                  </div>
+                </dl>
+              </section>
+              <section>
+                <h4>Agents</h4>
+                ${renderRunList(
+                  run.agents,
+                  "agents",
+                  (agent) => html`
+                    <li>
+                      <strong>${agent.agent}</strong>
+                      <span
+                        >${agent.role ?? "role not recorded"} · ${agent.model ?? "model n/a"}</span
+                      >
+                      ${agent.note ? html`<span>${agent.note}</span>` : nothing}
+                    </li>
+                  `,
+                )}
+              </section>
+              <section>
+                <h4>Artifacts</h4>
+                ${renderRunList(
+                  run.artifacts,
+                  "artifacts",
+                  (artifact) => html`
+                    <li>
+                      <strong>${artifact.kind}</strong>
+                      <span>${artifact.path}</span>
+                      <span
+                        >${artifact.agent ?? "unknown agent"}${artifact.note
+                          ? ` · ${artifact.note}`
+                          : ""}</span
+                      >
+                    </li>
+                  `,
+                )}
+              </section>
+              <section>
+                <h4>Decisions</h4>
+                ${renderRunList(
+                  run.decisions,
+                  "decisions",
+                  (decision) => html`
+                    <li>
+                      <strong>${decision.decision}</strong>
+                      <span>${decision.reason ?? "No reason recorded."}</span>
+                    </li>
+                  `,
+                )}
+              </section>
+              <section>
+                <h4>Workflow Deviations</h4>
+                ${renderRunList(
+                  run.workflowDeviations,
+                  "deviations",
+                  (deviation) => html`
+                    <li>
+                      <strong>${deviation.deviation}</strong>
+                      <span>${deviation.reason ?? "No reason recorded."}</span>
+                    </li>
+                  `,
+                )}
+              </section>
+            </div>
+          </details>
         `,
       )}
     </div>
