@@ -3,8 +3,14 @@
 Version: 0.2
 
 Standard workflows are reusable operating recipes for OpenClaw + Hermes. They
-encode the path that has already been tested so the CEO does not need to
-reinvent protocol steps for every task.
+encode tested paths so the CEO does not need to reinvent protocol steps for
+every task.
+
+The workflow catalog used by the dashboard lives in
+`zclaw_workflows.json`. It is intentionally a catalog, not a single mandatory
+pipeline. Each request should be matched to a tested workflow recipe when one
+fits. If no tested recipe fits, the CEO should use `custom_ceo_review`, design a
+task-specific route, and record any workflow deviation in the run ledger.
 
 ## Rules
 
@@ -21,6 +27,15 @@ reinvent protocol steps for every task.
 - Commands must follow `COMMAND_SAFETY.md` to avoid avoidable approval prompts
   during unattended work.
 - Durable memory is off by default unless the user explicitly allows it.
+
+## Workflow Catalog
+
+- `software_change_small`: tested recipe for scoped software changes.
+- `custom_ceo_review`: planned fallback category for work that needs a custom
+  route before dispatch.
+
+Future workflows should be added as separate recipes instead of stretching
+`software_change_small` beyond its intended scope.
 
 ## Workflow: `software_change_small`
 

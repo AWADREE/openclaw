@@ -40,6 +40,8 @@ describe("hybridHandlers", () => {
 
   it("returns sanitized Hermes worker telemetry", async () => {
     const runsRoot = await mkdtemp(join(tmpdir(), "openclaw-hybrid-runs-"));
+    const catalogRoot = await mkdtemp(join(tmpdir(), "openclaw-hybrid-workflows-"));
+    const catalogPath = join(catalogRoot, "zclaw_workflows.json");
     const runDir = join(runsRoot, "software_change_small", "20260506-193546-password-cli");
     await mkdir(runDir, { recursive: true });
     await writeFile(
@@ -66,7 +68,26 @@ describe("hybridHandlers", () => {
       }),
       "utf8",
     );
+    await writeFile(
+      catalogPath,
+      JSON.stringify({
+        schemaVersion: 1,
+        workflows: [
+          {
+            id: "software_change_small",
+            name: "Small Software Change",
+            status: "tested",
+            description: "Scoped software implementation.",
+            suitableFor: ["small CLI tools"],
+            notFor: ["broad refactors"],
+            agentPath: ["main", "planner", "builder", "qa-tester", "reporter", "main"],
+          },
+        ],
+      }),
+      "utf8",
+    );
     vi.stubEnv("Z_CLAW_RUNS_ROOT", runsRoot);
+    vi.stubEnv("Z_CLAW_WORKFLOWS_PATH", catalogPath);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -152,6 +173,16 @@ describe("hybridHandlers", () => {
             workflow: "software_change_small",
             taskId: "password-cli",
             status: "accepted",
+          },
+        ],
+      },
+      workflows: {
+        sourcePath: catalogPath,
+        catalog: [
+          {
+            id: "software_change_small",
+            name: "Small Software Change",
+            status: "tested",
           },
         ],
       },

@@ -61,6 +61,7 @@ export type HybridSummary = {
   providers: HybridStatusResult["providers"];
   organization: HybridStatusResult["organization"];
   runs: HybridStatusResult["runs"] | null;
+  workflows: HybridStatusResult["workflows"] | null;
   caveats: string[];
   healthIssueCount: number;
   healthIssues: HybridHealthIssue[];
@@ -265,7 +266,7 @@ export function summarizeHybridState(props: {
   }
   if (hermesBackedCount > 0) {
     caveats.push(
-      "OpenClaw usage totals only reflect OpenClaw-observed session usage. Hermes subscription windows, memory writes, and self-improvement telemetry need a Hermes telemetry bridge before they can be treated as authoritative here.",
+      "Gateway usage totals only reflect OpenClaw-observed session activity. Hermes subscription windows, memory writes, and self-improvement telemetry need a Hermes telemetry bridge before they can be treated as authoritative here.",
     );
   }
   if (!props.usageResult) {
@@ -282,6 +283,7 @@ export function summarizeHybridState(props: {
     providers: props.hybridResult?.providers ?? [],
     organization: props.hybridResult?.organization ?? null,
     runs: props.hybridResult?.runs ?? null,
+    workflows: props.hybridResult?.workflows ?? null,
     caveats,
     healthIssueCount: healthIssues.length,
     healthIssues,
@@ -348,8 +350,8 @@ function renderAgentCard(agent: HybridAgentSummary) {
           <dd>${agent.companyScope ?? "unknown"}</dd>
         </div>
         <div>
-          <dt>Brain</dt>
-          <dd>${agent.hermesBacked ? "Hermes worker" : "OpenClaw model"}</dd>
+          <dt>Cognition authority</dt>
+          <dd>${agent.hermesBacked ? "Hermes profile" : "Non-Hermes model route"}</dd>
         </div>
         <div>
           <dt>Profile</dt>
@@ -376,7 +378,7 @@ function renderAgentCard(agent: HybridAgentSummary) {
           <dd>${agent.lastActiveAt ? formatRelativeTimestamp(agent.lastActiveAt) : "never"}</dd>
         </div>
         <div>
-          <dt>OpenClaw usage</dt>
+          <dt>Gateway-observed usage</dt>
           <dd>${formatTokens(agent.usageTokens)} · ${formatCost(agent.usageCost)}</dd>
         </div>
       </dl>
@@ -424,7 +426,7 @@ function renderAgentCard(agent: HybridAgentSummary) {
               <dd>${metrics?.models?.join(", ") || "not reported"}</dd>
             </div>
             <div>
-              <dt>Billing labels</dt>
+              <dt>Observed billing labels</dt>
               <dd>${metrics?.billingProviders?.join(", ") || "not reported"}</dd>
             </div>
           </dl>
@@ -687,6 +689,65 @@ function renderRuns(runs: HybridStatusResult["runs"] | null) {
   `;
 }
 
+function renderWorkflowCatalog(workflows: HybridStatusResult["workflows"] | null) {
+  if (!workflows) {
+    return html`<div class="muted" style="margin-top: 12px">
+      No Z-Claw workflow catalog is available yet.
+    </div>`;
+  }
+  if (workflows.error) {
+    return html`<div class="alert warn">${workflows.error}</div>`;
+  }
+  if (workflows.catalog.length === 0) {
+    return html`<div class="muted" style="margin-top: 12px">
+      No workflow recipes are registered. Routed work should require CEO review before dispatch.
+    </div>`;
+  }
+  return html`
+    <div class="hybrid-run-summary">
+      <span>${workflows.catalog.length} workflow recipes</span>
+      <span>${workflows.sourcePath}</span>
+    </div>
+    <div class="hybrid-runs">
+      ${workflows.catalog.map(
+        (workflow) => html`
+          <article class="hybrid-run">
+            <div class="hybrid-run__summary">
+              <div>
+                <h4>${workflow.name}</h4>
+                <span>${workflow.id}</span>
+              </div>
+              <span
+                class="hybrid-pill hybrid-pill--${workflow.status === "tested"
+                  ? "active"
+                  : workflow.status === "deprecated"
+                    ? "idle"
+                    : "unknown"}"
+                >${workflow.status}</span
+              >
+            </div>
+            ${workflow.description ? html`<p>${workflow.description}</p>` : nothing}
+            <dl class="hybrid-agent__facts">
+              <div>
+                <dt>Agent path</dt>
+                <dd>${workflow.agentPath.join(" -> ") || "CEO-selected"}</dd>
+              </div>
+              <div>
+                <dt>Use for</dt>
+                <dd>${workflow.suitableFor.join(", ") || "not declared"}</dd>
+              </div>
+              <div>
+                <dt>Not for</dt>
+                <dd>${workflow.notFor.join(", ") || "not declared"}</dd>
+              </div>
+            </dl>
+          </article>
+        `,
+      )}
+    </div>
+  `;
+}
+
 function renderProvider(provider: HybridStatusResult["providers"][number]) {
   const status =
     provider.reachable === true
@@ -746,7 +807,10 @@ function renderProvider(provider: HybridStatusResult["providers"][number]) {
                       >
                       <span>${formatTokens(profile.metrics?.inputTokens ?? 0)} input tokens</span>
                       <span>${formatTokens(profile.metrics?.outputTokens ?? 0)} output tokens</span>
-                      <span>${formatCost(profile.metrics?.estimatedCostUsd ?? 0)} estimated</span>
+                      <span
+                        >${formatCost(profile.metrics?.estimatedCostUsd ?? 0)} adapter estimate, not
+                        billing</span
+                      >
                     </div>
                   </div>
                 `,
@@ -768,9 +832,8 @@ export function renderHybrid(props: HybridProps) {
           <div class="hybrid-eyebrow">Hybrid control plane</div>
           <h2>OpenClaw orchestration, Hermes cognition</h2>
           <p>
-            This view tracks whether OpenClaw agents are routed through Hermes worker profiles and
-            separates OpenClaw-observed activity from Hermes-owned memory and subscription
-            telemetry.
+            This view tracks whether OpenClaw routes agents through Hermes worker profiles and
+            separates gateway-observed activity from Hermes-owned memory and subscription telemetry.
           </p>
         </div>
         <div class="hybrid-hero__actions">
@@ -800,12 +863,12 @@ export function renderHybrid(props: HybridProps) {
         ${renderMetric(
           "Observed tokens",
           formatTokens(summary.openclawNativeTokens),
-          "OpenClaw usage",
+          "Gateway sessions",
         )}
         ${renderMetric(
           "Observed cost",
           formatCost(summary.openclawNativeCost),
-          "Not Hermes billing",
+          "Not billing authority",
         )}
         ${renderMetric("Health issues", summary.healthIssueCount, "Adapter/profile")}
       </section>
@@ -824,6 +887,11 @@ export function renderHybrid(props: HybridProps) {
             <li>
               <strong>Dashboard costs</strong> are labeled as observed usage until Hermes billing
               telemetry is connected.
+            </li>
+            <li>
+              <strong>Workflows</strong> are selected per task.
+              <code>software_change_small</code> is the tested small-code recipe, not the only
+              workflow this system should support.
             </li>
             <li>
               <strong>Agent state</strong> is inferred from sessions today; richer worker telemetry
@@ -849,6 +917,11 @@ export function renderHybrid(props: HybridProps) {
       <section class="hybrid-panel">
         <h3>Companies and Teams</h3>
         ${renderOrganization(summary.organization)}
+      </section>
+
+      <section class="hybrid-panel">
+        <h3>Workflow Recipes</h3>
+        ${renderWorkflowCatalog(summary.workflows)}
       </section>
 
       <section class="hybrid-panel">

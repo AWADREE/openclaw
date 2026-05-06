@@ -148,6 +148,20 @@ describe("summarizeHybridState", () => {
             },
           ],
         },
+        workflows: {
+          sourcePath: "/home/z/Claw/integration/zclaw_workflows.json",
+          catalog: [
+            {
+              id: "software_change_small",
+              name: "Small Software Change",
+              status: "tested",
+              description: "Scoped software implementation.",
+              suitableFor: ["small CLI tools"],
+              notFor: ["broad refactors"],
+              agentPath: ["main", "planner", "builder", "qa-tester", "reporter", "main"],
+            },
+          ],
+        },
         providers: [
           {
             id: "hermes-workers",
@@ -235,6 +249,7 @@ describe("summarizeHybridState", () => {
     expect(summary.agents[0]?.recentRuns[0]?.taskId).toBe("password-cli");
     expect(summary.organization?.companies[0]?.name).toBe("Shared Services");
     expect(summary.runs?.recent[0]?.status).toBe("accepted");
+    expect(summary.workflows?.catalog[0]?.id).toBe("software_change_small");
     expect(summary.healthIssueCount).toBe(1);
     expect(summary.healthIssues[0]).toMatchObject({
       severity: "warn",

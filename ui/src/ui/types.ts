@@ -406,6 +406,19 @@ export type HybridStatusResult = {
     }>;
     error?: string;
   };
+  workflows: {
+    sourcePath: string;
+    catalog: Array<{
+      id: string;
+      name: string;
+      status: "tested" | "planned" | "deprecated";
+      description: string | null;
+      suitableFor: string[];
+      notFor: string[];
+      agentPath: string[];
+    }>;
+    error?: string;
+  };
   providers: Array<{
     id: string;
     kind: "hermes-worker" | "model-provider";

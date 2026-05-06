@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "systemName": "Z Claw",
+  "workflows": [
+    {
+      "id": "software_change_small",
+      "name": "Small Software Change",
+      "status": "tested",
+      "description": "Scoped software implementation where one builder task plus QA is enough.",
+      "suitableFor": [
+        "small CLI tools",
+        "focused bug fixes",
+        "narrow validation or persistence changes",
+        "small utility scripts with verification"
+      ],
+      "notFor": [
+        "broad refactors",
+        "unclear product design",
+        "security-sensitive work",
+        "dependency upgrades",
+        "destructive commands",
+        "public release actions"
+      ],
+      "agentPath": ["main", "planner", "builder", "qa-tester", "reporter", "main"]
+    },
+    {
+      "id": "custom_ceo_review",
+      "name": "Custom CEO-Reviewed Workflow",
+      "status": "planned",
+      "description": "Fallback category for tasks that do not fit a tested recipe yet. The CEO must design the route before dispatch.",
+      "suitableFor": [
+        "ambiguous requests",
+        "large multi-step work",
+        "new company/team workflows",
+        "tasks needing specialized agents not in an existing recipe"
+      ],
+      "notFor": ["automatic unattended execution without a selected recipe"],
+      "agentPath": ["main", "planner", "specialized-agents", "reviewers", "reporter", "main"]
+    }
+  ]
+}

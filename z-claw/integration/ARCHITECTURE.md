@@ -105,6 +105,10 @@ See `COMMAND_SAFETY.md` for unattended-safe command policy.
 - `hybrid.status` also reports sanitized workflow run summaries from
   `/home/z/Claw/workspace/runs`. It reads `manifest.json` metadata only; it does
   not read raw worker outputs or artifact contents.
+- `hybrid.status` reports the Z-Claw workflow catalog from
+  `zclaw_workflows.json`. The catalog distinguishes tested recipes such as
+  `software_change_small` from planned/custom workflows so the dashboard does
+  not imply one universal workflow for every task.
 - The Hybrid dashboard renders expandable agent detail panels showing role,
   team, Hermes profile/session metrics, recent workflow participation, model
   labels, billing labels, and operating policy.

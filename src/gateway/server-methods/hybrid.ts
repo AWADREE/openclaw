@@ -105,6 +105,16 @@ type HybridRunSummary = {
   }>;
 };
 
+type HybridWorkflowCatalogEntry = {
+  id: string;
+  name: string;
+  status: "tested" | "planned" | "deprecated";
+  description: string | null;
+  suitableFor: string[];
+  notFor: string[];
+  agentPath: string[];
+};
+
 export type HybridStatusResult = {
   ok: true;
   generatedAt: number;
@@ -113,6 +123,11 @@ export type HybridStatusResult = {
     root: string;
     total: number;
     recent: HybridRunSummary[];
+    error?: string;
+  };
+  workflows: {
+    sourcePath: string;
+    catalog: HybridWorkflowCatalogEntry[];
     error?: string;
   };
   providers: ProviderStatus[];
@@ -283,6 +298,13 @@ function organizationPath(): string {
 
 function runsRoot(): string {
   return process.env.Z_CLAW_RUNS_ROOT?.trim() || `${zClawRuntimeRoot()}/workspace/runs`;
+}
+
+function workflowCatalogPath(): string {
+  return (
+    process.env.Z_CLAW_WORKFLOWS_PATH?.trim() ||
+    `${zClawSourceRoot()}/integration/zclaw_workflows.json`
+  );
 }
 
 function parseOrganizationAgent(entry: unknown): OrganizationAgent | null {
@@ -560,6 +582,68 @@ async function readRunLedger(): Promise<{
   };
 }
 
+function parseWorkflowCatalogEntry(entry: unknown): HybridWorkflowCatalogEntry | null {
+  if (!isRecord(entry)) {
+    return null;
+  }
+  const id = asTrimmedString(entry.id);
+  const name = asTrimmedString(entry.name);
+  if (!id || !name) {
+    return null;
+  }
+  const rawStatus = asTrimmedString(entry.status);
+  const status =
+    rawStatus === "tested" || rawStatus === "deprecated" || rawStatus === "planned"
+      ? rawStatus
+      : "planned";
+  return {
+    id,
+    name,
+    status,
+    description: asTrimmedString(entry.description),
+    suitableFor: asStringArray(entry.suitableFor),
+    notFor: asStringArray(entry.notFor),
+    agentPath: asStringArray(entry.agentPath),
+  };
+}
+
+function parseWorkflowCatalog(body: unknown): HybridWorkflowCatalogEntry[] {
+  if (!isRecord(body) || !Array.isArray(body.workflows)) {
+    return [];
+  }
+  return body.workflows
+    .map(parseWorkflowCatalogEntry)
+    .filter((entry): entry is HybridWorkflowCatalogEntry => Boolean(entry));
+}
+
+async function readWorkflowCatalog(): Promise<{
+  sourcePath: string;
+  catalog: HybridWorkflowCatalogEntry[];
+  error?: string;
+}> {
+  const sourcePath = workflowCatalogPath();
+  try {
+    const raw = await readFile(sourcePath, "utf8");
+    const catalog = parseWorkflowCatalog(JSON.parse(raw) as unknown);
+    if (catalog.length === 0) {
+      return { sourcePath, catalog: [], error: "workflow catalog empty or invalid" };
+    }
+    return { sourcePath, catalog };
+  } catch (err) {
+    const code = isRecord(err) && typeof err.code === "string" ? err.code : null;
+    return {
+      sourcePath,
+      catalog: [],
+      error:
+        code === "ENOENT"
+          ? "workflow catalog missing"
+          : err instanceof Error
+            ? err.message
+            : String(err),
+    };
+  }
+}
+
 function parseAdapterProfiles(body: unknown): AdapterProfileStatus[] | undefined {
   if (!isRecord(body) || !Array.isArray(body.profiles)) {
     return undefined;
@@ -670,6 +754,7 @@ export const hybridHandlers: GatewayRequestHandlers = {
     const cfg = context.getRuntimeConfig();
     const organization = await readOrganization();
     const runs = await readRunLedger();
+    const workflows = await readWorkflowCatalog();
     const providers = readProviders(cfg);
     const agentRows = listAgentsForGateway(cfg).agents;
     const agents = agentRows.map((agent) => {
@@ -757,11 +842,15 @@ export const hybridHandlers: GatewayRequestHandlers = {
     if (runs.error) {
       caveats.push(`Z-Claw run ledger: ${runs.error}.`);
     }
+    if (workflows.error) {
+      caveats.push(`Z-Claw workflow catalog: ${workflows.error}.`);
+    }
     respond(true, {
       ok: true,
       generatedAt: Date.now(),
       organization: organization.organization,
       runs,
+      workflows,
       providers: providerStatuses,
       agents: finalAgents,
       telemetry: {

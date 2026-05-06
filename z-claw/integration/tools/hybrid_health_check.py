@@ -131,6 +131,24 @@ def main() -> int:
         and isinstance(runs.get("total"), int)
         and isinstance(recent_runs, list)
     )
+    workflows = hybrid_status.get("workflows") if isinstance(hybrid_status, dict) else None
+    workflow_catalog = workflows.get("catalog") if isinstance(workflows, dict) else None
+    workflows_ok = (
+        isinstance(workflows, dict)
+        and isinstance(workflows.get("sourcePath"), str)
+        and isinstance(workflow_catalog, list)
+        and any(
+            isinstance(workflow, dict)
+            and workflow.get("id") == "software_change_small"
+            and workflow.get("status") == "tested"
+            for workflow in workflow_catalog
+        )
+        and any(
+            isinstance(workflow, dict)
+            and workflow.get("id") == "custom_ceo_review"
+            for workflow in workflow_catalog
+        )
+    )
 
     summary = {
         "ok": all([
@@ -145,6 +163,7 @@ def main() -> int:
             metrics_ok,
             organization_ok,
             runs_ok,
+            workflows_ok,
         ]),
         "checks": {
             "openclaw_version": version.ok,
@@ -157,6 +176,7 @@ def main() -> int:
             "hermes_profile_metrics_reported": metrics_ok,
             "zclaw_organization_reported": organization_ok,
             "zclaw_runs_reported": runs_ok,
+            "zclaw_workflows_reported": workflows_ok,
         },
         "openclaw_version": version.data.get("stdout"),
         "agent_count": len(agents),
