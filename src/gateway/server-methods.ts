@@ -53,6 +53,7 @@ import { wizardHandlers } from "./server-methods/wizard.js";
 const CONTROL_PLANE_WRITE_METHODS = new Set([
   "config.apply",
   "config.patch",
+  "zclaw.agents.create",
   "gateway.restart.request",
   "update.run",
 ]);

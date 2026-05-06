@@ -8,6 +8,7 @@ type GatewayMethodChannelPlugin = {
 const BASE_METHODS = [
   "health",
   "hybrid.status",
+  "zclaw.agents.create",
   "diagnostics.stability",
   "doctor.memory.status",
   "doctor.memory.dreamDiary",

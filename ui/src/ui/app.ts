@@ -118,6 +118,7 @@ import type {
   ToolsCatalogResult,
   ToolsEffectiveResult,
   HybridStatusResult,
+  ZClawAgentCreateResult,
 } from "./types.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
 import { generateUUID } from "./uuid.ts";
@@ -354,6 +355,9 @@ export class OpenClawApp extends LitElement {
   @state() agentsList: AgentsListResult | null = null;
   @state() agentsError: string | null = null;
   @state() agentsSelectedId: string | null = null;
+  @state() zclawAgentCreateLoading = false;
+  @state() zclawAgentCreateError: string | null = null;
+  @state() zclawAgentCreateResult: ZClawAgentCreateResult | null = null;
   @state() toolsCatalogLoading = false;
   @state() toolsCatalogError: string | null = null;
   @state() toolsCatalogResult: ToolsCatalogResult | null = null;

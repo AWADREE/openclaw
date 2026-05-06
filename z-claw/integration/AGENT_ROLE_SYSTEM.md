@@ -141,6 +141,21 @@ Examples:
 
 ## Creation Checklist
 
+Preferred path: create agents from the OpenClaw dashboard Agents page using
+`Create Z-Claw Agent`. That flow is the authoritative hybrid creation path. It
+provisions:
+
+- an OpenClaw agent route using `hermes-workers/<agent-id>`;
+- a Z-Claw source role directory under `z-claw/agents/<agent-id>`;
+- a runtime workspace under `/home/z/Claw/agents/<agent-id>`;
+- a dedicated Hermes profile under the configured Hermes home;
+- a registry entry in `zclaw_organization.json`; and
+- baseline `SOUL.md`, `AGENTS.md`, `IDENTITY.md`, `TOOLS.md`, `USER.md`, and
+  `HEARTBEAT.md` files.
+
+Do not use native OpenClaw-only agent creation for durable Z-Claw workers unless
+the agent is intentionally not Hermes-backed.
+
 Before adding a new agent:
 
 1. Identify the company or shared team.

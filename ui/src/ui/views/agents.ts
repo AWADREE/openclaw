@@ -12,6 +12,8 @@ import type {
   SkillStatusReport,
   ToolsCatalogResult,
   ToolsEffectiveResult,
+  ZClawAgentCreateParams,
+  ZClawAgentCreateResult,
 } from "../types.ts";
 import { renderAgentOverview } from "./agents-panels-overview.ts";
 import {
@@ -92,6 +94,11 @@ export type AgentsProps = {
   agentSkills: AgentSkillsState;
   toolsCatalog: ToolsCatalogState;
   toolsEffective: ToolsEffectiveState;
+  zclawCreate: {
+    loading: boolean;
+    error: string | null;
+    result: ZClawAgentCreateResult | null;
+  };
   runtimeSessionKey: string;
   runtimeSessionMatchesSelectedAgent: boolean;
   modelCatalog: ModelCatalogEntry[];
@@ -118,6 +125,7 @@ export type AgentsProps = {
   onAgentSkillsClear: (agentId: string) => void;
   onAgentSkillsDisableAll: (agentId: string) => void;
   onSetDefault: (agentId: string) => void;
+  onCreateZClawAgent: (params: ZClawAgentCreateParams) => void;
 };
 
 export function renderAgents(props: AgentsProps) {
@@ -208,6 +216,7 @@ export function renderAgents(props: AgentsProps) {
           ? html`<div class="callout danger" style="margin-top: 8px;">${props.error}</div>`
           : nothing}
       </section>
+      ${renderZClawCreateAgent(props)}
       <section class="agents-main">
         ${!selectedAgent
           ? html`
@@ -345,6 +354,136 @@ export function renderAgents(props: AgentsProps) {
             `}
       </section>
     </div>
+  `;
+}
+
+function optionalFormString(form: FormData, name: string): string | undefined {
+  const value = form.get(name);
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function requiredFormString(form: FormData, name: string): string {
+  return optionalFormString(form, name) ?? "";
+}
+
+function renderZClawCreateAgent(props: AgentsProps) {
+  const result = props.zclawCreate.result;
+  return html`
+    <details class="card agents-zclaw-create">
+      <summary class="agents-zclaw-create__summary">
+        <span>
+          <strong>Create Z-Claw Agent</strong>
+          <small>Hermes-backed profile, workspace, registry entry, and OpenClaw route.</small>
+        </span>
+      </summary>
+      <form
+        class="agents-zclaw-create__form"
+        @submit=${(event: SubmitEvent) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget as HTMLFormElement);
+          props.onCreateZClawAgent({
+            id: optionalFormString(form, "id"),
+            name: requiredFormString(form, "name"),
+            role: requiredFormString(form, "role"),
+            teamId: requiredFormString(form, "teamId") || "research",
+            companyScope: requiredFormString(form, "companyScope") || "shared",
+            hermesProfile: optionalFormString(form, "hermesProfile"),
+            defaultModel: optionalFormString(form, "defaultModel"),
+            modelBudget: requiredFormString(form, "modelBudget") || "local-default",
+            toolUse: requiredFormString(form, "toolUse") || "role-specific",
+            description: optionalFormString(form, "description"),
+          });
+        }}
+      >
+        <div class="form-grid">
+          <label class="field">
+            <span>Name</span>
+            <input name="name" required placeholder="Owen Carter" />
+          </label>
+          <label class="field">
+            <span>Role</span>
+            <input name="role" required placeholder="Python CLI engineer" />
+          </label>
+          <label class="field">
+            <span>Agent ID</span>
+            <input name="id" placeholder="Auto-generated from name" />
+          </label>
+          <label class="field">
+            <span>Hermes profile</span>
+            <input name="hermesProfile" placeholder="Auto-generated from agent ID" />
+          </label>
+          <label class="field">
+            <span>Team</span>
+            <select name="teamId">
+              <option value="research">Research</option>
+              <option value="engineering">Engineering</option>
+              <option value="qa">Quality Assurance</option>
+              <option value="writing">Writing</option>
+              <option value="media">Media</option>
+              <option value="operations">Operations</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Company scope</span>
+            <select name="companyScope">
+              <option value="shared">Shared</option>
+              <option value="software-studio">Software Studio</option>
+              <option value="game-studio">Game Studio</option>
+              <option value="publishing-studio">Publishing Studio</option>
+              <option value="media-studio">Media Studio</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Model budget</span>
+            <select name="modelBudget">
+              <option value="local-default">Local default</option>
+              <option value="tool-execution">Tool execution</option>
+              <option value="ceo-review">CEO review</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Default brain model</span>
+            <select name="defaultModel">
+              <option value="">Auto from budget</option>
+              <option value="ollama-lan/qwen3.5:9b">qwen3.5:9b on Ollama LAN</option>
+              <option value="ollama-lan/qwen2.5-coder:14b">qwen2.5-coder:14b on Ollama LAN</option>
+              <option value="openai-codex/gpt-5.4-mini">gpt-5.4-mini through Hermes Codex</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Tool-use class</span>
+            <input name="toolUse" value="role-specific" />
+          </label>
+          <label class="field field--wide">
+            <span>Description</span>
+            <textarea
+              name="description"
+              rows="3"
+              placeholder="What this agent should own, avoid, and escalate."
+            ></textarea>
+          </label>
+        </div>
+        <div class="agents-zclaw-create__actions">
+          <button class="btn" ?disabled=${props.zclawCreate.loading}>
+            ${props.zclawCreate.loading ? "Creating..." : "Create Hermes-backed agent"}
+          </button>
+        </div>
+      </form>
+      ${props.zclawCreate.error
+        ? html`<div class="callout danger">${props.zclawCreate.error}</div>`
+        : nothing}
+      ${result
+        ? html`
+            <div class="callout success">
+              Created ${result.name} as ${result.agentId}. Route: ${result.modelPrimary}.
+            </div>
+          `
+        : nothing}
+    </details>
   `;
 }
 

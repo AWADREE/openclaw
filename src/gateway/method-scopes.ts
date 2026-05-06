@@ -184,6 +184,7 @@ const METHOD_SCOPE_GROUPS: Record<OperatorScope, readonly string[]> = {
     "channels.stop",
     "channels.logout",
     "agents.create",
+    "zclaw.agents.create",
     "agents.update",
     "agents.delete",
     "skills.install",

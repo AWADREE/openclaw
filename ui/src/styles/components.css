@@ -4101,6 +4101,55 @@ td.data-table-key-col {
   white-space: nowrap;
 }
 
+.agents-zclaw-create {
+  padding: 0;
+}
+
+.agents-zclaw-create__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+
+.agents-zclaw-create__summary span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.agents-zclaw-create__summary strong {
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.agents-zclaw-create__summary small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.agents-zclaw-create__form {
+  display: grid;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+
+.agents-zclaw-create .callout {
+  margin: 0 16px 16px;
+}
+
+.agents-zclaw-create__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.field--wide {
+  grid-column: 1 / -1;
+}
+
 .btn--ghost {
   background: transparent;
   border-color: transparent;

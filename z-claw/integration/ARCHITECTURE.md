@@ -109,6 +109,10 @@ See `COMMAND_SAFETY.md` for unattended-safe command policy.
   `zclaw_workflows.json`. The catalog distinguishes tested recipes such as
   `software_change_small` from planned/custom workflows so the dashboard does
   not imply one universal workflow for every task.
+- `zclaw.agents.create` is the dashboard-backed hybrid agent creation method.
+  It creates Hermes-backed agents by writing the Z-Claw organization registry,
+  runtime/source role files, dedicated Hermes profile configuration, and the
+  OpenClaw route to `hermes-workers/<agent-id>` in one operation.
 - The Hybrid dashboard renders expandable agent detail panels showing role,
   team, Hermes profile/session metrics, recent workflow participation, model
   labels, billing labels, and operating policy.

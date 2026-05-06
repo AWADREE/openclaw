@@ -94,6 +94,11 @@ function createProps(overrides: Partial<AgentsProps> = {}): AgentsProps {
       error: null,
       result: null,
     },
+    zclawCreate: {
+      loading: false,
+      error: null,
+      result: null,
+    },
     runtimeSessionKey: "main",
     runtimeSessionMatchesSelectedAgent: false,
     modelCatalog: [],
@@ -120,6 +125,7 @@ function createProps(overrides: Partial<AgentsProps> = {}): AgentsProps {
     onAgentSkillsClear: () => undefined,
     onAgentSkillsDisableAll: () => undefined,
     onSetDefault: () => undefined,
+    onCreateZClawAgent: () => undefined,
     ...overrides,
   };
 }

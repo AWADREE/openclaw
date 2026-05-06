@@ -30,6 +30,7 @@ import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-iden
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import {
   buildToolsEffectiveRequestKey,
+  createZClawAgent,
   loadAgents,
   loadToolsCatalog,
   loadToolsEffective,
@@ -2083,6 +2084,11 @@ export function renderApp(state: AppViewState) {
                   error: state.toolsEffectiveError,
                   result: state.toolsEffectiveResult,
                 },
+                zclawCreate: {
+                  loading: state.zclawAgentCreateLoading,
+                  error: state.zclawAgentCreateError,
+                  result: state.zclawAgentCreateResult,
+                },
                 runtimeSessionKey: state.sessionKey,
                 runtimeSessionMatchesSelectedAgent: toolsPanelUsesActiveSession,
                 modelCatalog: state.chatModelCatalog ?? [],
@@ -2103,6 +2109,18 @@ export function renderApp(state: AppViewState) {
                   resetAgentSelectionPanelState();
                   void loadAgentIdentity(state, agentId);
                   loadAgentPanelDataForSelectedAgent(agentId);
+                },
+                onCreateZClawAgent: async (params) => {
+                  await createZClawAgent(state, params);
+                  const agentId = state.zclawAgentCreateResult?.agentId;
+                  if (!agentId) {
+                    return;
+                  }
+                  state.agentsSelectedId = agentId;
+                  resetAgentSelectionPanelState();
+                  void loadAgentIdentity(state, agentId);
+                  loadAgentPanelDataForSelectedAgent(agentId);
+                  void loadHybridStatus(state);
                 },
                 onSelectPanel: (panel) => {
                   state.agentsPanel = panel;

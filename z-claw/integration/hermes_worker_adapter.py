@@ -38,12 +38,47 @@ PROFILE_NAMES = {
     "zqa": "Maya Bennett",
 }
 
-MODEL_METADATA = [
-    {"id": model, "object": "model", "created": 0, "owned_by": "hermes"}
-    for model in MODEL_TO_PROFILE
-]
-
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", "/home/z/.hermes"))
+Z_CLAW_ROOT = Path(os.environ.get("Z_CLAW_ROOT", "/home/z/Claw"))
+Z_CLAW_ORGANIZATION_PATH = Path(
+    os.environ.get("Z_CLAW_ORGANIZATION_PATH", str(Z_CLAW_ROOT / "integration" / "zclaw_organization.json"))
+)
+
+
+def load_registry_agents() -> list[dict[str, Any]]:
+    try:
+        body = json.loads(Z_CLAW_ORGANIZATION_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    agents = body.get("agents") if isinstance(body, dict) else None
+    return [agent for agent in agents if isinstance(agent, dict)] if isinstance(agents, list) else []
+
+
+def model_profile_map() -> dict[str, str]:
+    mapped = dict(MODEL_TO_PROFILE)
+    for agent in load_registry_agents():
+        agent_id = str(agent.get("id", "")).strip()
+        profile = str(agent.get("hermesProfile", "")).strip()
+        if agent_id and profile:
+            mapped[agent_id] = profile
+    return mapped
+
+
+def profile_name_map() -> dict[str, str]:
+    mapped = dict(PROFILE_NAMES)
+    for agent in load_registry_agents():
+        profile = str(agent.get("hermesProfile", "")).strip()
+        name = str(agent.get("name", "")).strip()
+        if profile and name:
+            mapped[profile] = name
+    return mapped
+
+
+def model_metadata() -> list[dict[str, Any]]:
+    return [
+        {"id": model, "object": "model", "created": 0, "owned_by": "hermes"}
+        for model in model_profile_map()
+    ]
 
 
 def log(event: dict[str, Any]) -> None:
@@ -256,13 +291,15 @@ def adapter_log_stats(profile: str) -> dict[str, Any]:
 
 def adapter_status() -> dict[str, Any]:
     profiles = []
-    for model, profile in MODEL_TO_PROFILE.items():
+    names = profile_name_map()
+    model_profiles = model_profile_map()
+    for model, profile in model_profiles.items():
         session_file = session_file_for_profile(profile)
         sessions = profile_session_stats(profile)
         profiles.append({
             "model": model,
             "profile": profile,
-            "name": PROFILE_NAMES.get(profile, profile),
+            "name": names.get(profile, profile),
             "profileHomeExists": profile_home(profile).exists(),
             "sessionFileExists": session_file.exists(),
             "sessionId": read_adapter_session_id(profile),
@@ -274,7 +311,7 @@ def adapter_status() -> dict[str, Any]:
         "ok": True,
         "adapter": "hermes-worker-adapter",
         "version": "0.2",
-        "models": list(MODEL_TO_PROFILE),
+        "models": list(model_profiles),
         "profiles": profiles,
     }
 
@@ -372,7 +409,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path.rstrip("/") == "/v1/models" or self.path.rstrip("/") == "/models":
-            self._send_json(200, {"object": "list", "data": MODEL_METADATA})
+            self._send_json(200, {"object": "list", "data": model_metadata()})
             return
         if self.path.rstrip("/") in {"", "/health", "/v1/health"}:
             self._send_json(200, adapter_status())
@@ -394,7 +431,7 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_chat(self) -> None:
         req = self._read_json()
         model = normalize_model(str(req.get("model", "")))
-        profile = MODEL_TO_PROFILE.get(model)
+        profile = model_profile_map().get(model)
         if not profile:
             self._send_json(400, {"error": {"message": f"unknown model/profile: {model}"}})
             return
@@ -408,7 +445,7 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_completion(self) -> None:
         req = self._read_json()
         model = normalize_model(str(req.get("model", "")))
-        profile = MODEL_TO_PROFILE.get(model)
+        profile = model_profile_map().get(model)
         if not profile:
             self._send_json(400, {"error": {"message": f"unknown model/profile: {model}"}})
             return

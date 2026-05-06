@@ -11,6 +11,8 @@ import type {
   SessionsListResult,
   ToolsCatalogResult,
   ToolsEffectiveResult,
+  ZClawAgentCreateParams,
+  ZClawAgentCreateResult,
 } from "../types.ts";
 import { saveConfig } from "./config.ts";
 import type { ConfigState } from "./config.ts";
@@ -26,6 +28,9 @@ export type AgentsState = {
   agentsError: string | null;
   agentsList: AgentsListResult | null;
   agentsSelectedId: string | null;
+  zclawAgentCreateLoading?: boolean;
+  zclawAgentCreateError?: string | null;
+  zclawAgentCreateResult?: ZClawAgentCreateResult | null;
   toolsCatalogLoading: boolean;
   toolsCatalogLoadingAgentId?: string | null;
   toolsCatalogError: string | null;
@@ -81,6 +86,25 @@ export async function loadAgents(state: AgentsState) {
     }
   } finally {
     state.agentsLoading = false;
+  }
+}
+
+export async function createZClawAgent(state: AgentsState, params: ZClawAgentCreateParams) {
+  if (!state.client || !state.connected || state.zclawAgentCreateLoading) {
+    return;
+  }
+  state.zclawAgentCreateLoading = true;
+  state.zclawAgentCreateError = null;
+  state.zclawAgentCreateResult = null;
+  try {
+    const res = await state.client.request<ZClawAgentCreateResult>("zclaw.agents.create", params);
+    state.zclawAgentCreateResult = res;
+    state.agentsSelectedId = res.agentId;
+    await loadAgents(state);
+  } catch (err) {
+    state.zclawAgentCreateError = String(err);
+  } finally {
+    state.zclawAgentCreateLoading = false;
   }
 }
 

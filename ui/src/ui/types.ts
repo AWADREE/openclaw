@@ -343,6 +343,32 @@ export type AgentsListResult = {
   agents: GatewayAgentRow[];
 };
 
+export type ZClawAgentCreateParams = {
+  id?: string;
+  name: string;
+  role: string;
+  teamId: string;
+  companyScope: string;
+  hermesProfile?: string;
+  defaultModel?: string;
+  modelBudget?: string;
+  toolUse?: string;
+  description?: string;
+};
+
+export type ZClawAgentCreateResult = {
+  agentId: string;
+  name: string;
+  hermesProfile: string;
+  modelPrimary: string;
+  workspace: string;
+  agentDir: string;
+  organizationPath: string;
+  runtimeOrganizationPath: string | null;
+  hermesProfileHome: string;
+  files: string[];
+};
+
 export type HybridStatusResult = {
   ok: true;
   generatedAt: number;

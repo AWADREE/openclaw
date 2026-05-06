@@ -1,9 +1,14 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { replaceConfigFile } from "../../config/config.js";
 import { hybridHandlers } from "./hybrid.js";
 import type { GatewayRequestHandlerOptions } from "./types.js";
+
+vi.mock("../../config/config.js", () => ({
+  replaceConfigFile: vi.fn(async () => undefined),
+}));
 
 function createContext() {
   return {
@@ -36,6 +41,7 @@ function createContext() {
 describe("hybridHandlers", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("returns sanitized Hermes worker telemetry", async () => {
@@ -188,5 +194,107 @@ describe("hybridHandlers", () => {
       },
     });
     expect(JSON.stringify(payload)).not.toContain("must-not-be-returned");
+  });
+
+  it("provisions Hermes-backed Z-Claw agents through the dedicated create flow", async () => {
+    const root = await mkdtemp(join(tmpdir(), "openclaw-zclaw-create-"));
+    const sourceRoot = join(root, "source");
+    const runtimeRoot = join(root, "runtime");
+    const hermesHome = join(root, "hermes");
+    await mkdir(join(sourceRoot, "integration"), { recursive: true });
+    await writeFile(
+      join(sourceRoot, "integration", "zclaw_organization.json"),
+      JSON.stringify({
+        schemaVersion: 1,
+        systemName: "Z Claw",
+        companies: [{ id: "shared", name: "Shared", kind: "shared", teamIds: ["research"] }],
+        teams: [{ id: "research", name: "Research", scope: "shared", agentIds: [] }],
+        agents: [],
+      }),
+      "utf8",
+    );
+    vi.stubEnv("Z_CLAW_ROOT", sourceRoot);
+    vi.stubEnv("Z_CLAW_RUNTIME_ROOT", runtimeRoot);
+    vi.stubEnv("HERMES_HOME", hermesHome);
+
+    let payload: unknown = null;
+    await hybridHandlers["zclaw.agents.create"]?.({
+      params: {
+        name: "Alice Morgan",
+        role: "History research analyst",
+        teamId: "research",
+        companyScope: "shared",
+        modelBudget: "local-default",
+        toolUse: "research-readonly",
+      },
+      context: createContext(),
+      respond: (ok, result, error) => {
+        expect(error).toBeUndefined();
+        expect(ok).toBe(true);
+        payload = result;
+      },
+    } as unknown as GatewayRequestHandlerOptions);
+
+    expect(payload).toMatchObject({
+      agentId: "alice-morgan",
+      name: "Alice Morgan",
+      hermesProfile: "zalicemorgan",
+      modelPrimary: "hermes-workers/alice-morgan",
+      workspace: join(runtimeRoot, "agents", "alice-morgan"),
+      agentDir: join(sourceRoot, "agents", "alice-morgan"),
+      organizationPath: join(sourceRoot, "integration", "zclaw_organization.json"),
+      runtimeOrganizationPath: join(runtimeRoot, "integration", "zclaw_organization.json"),
+      hermesProfileHome: join(hermesHome, "profiles", "zalicemorgan"),
+    });
+
+    const runtimeSoul = await readFile(
+      join(runtimeRoot, "agents", "alice-morgan", "SOUL.md"),
+      "utf8",
+    );
+    const sourceIdentity = await readFile(
+      join(sourceRoot, "agents", "alice-morgan", "IDENTITY.md"),
+      "utf8",
+    );
+    const profileConfig = await readFile(
+      join(hermesHome, "profiles", "zalicemorgan", "config.yaml"),
+      "utf8",
+    );
+    const org = JSON.parse(
+      await readFile(join(sourceRoot, "integration", "zclaw_organization.json"), "utf8"),
+    ) as {
+      teams: Array<{ id: string; agentIds: string[] }>;
+      agents: Array<{ id: string; hermesProfile: string; memoryOwner: string }>;
+    };
+
+    expect(runtimeSoul).toContain("History research analyst");
+    expect(sourceIdentity).toContain("Alice Morgan");
+    expect(profileConfig).toContain('provider: "custom"');
+    expect(profileConfig).toContain("192.168.1.34:11434");
+    expect(org.agents).toContainEqual(
+      expect.objectContaining({
+        id: "alice-morgan",
+        hermesProfile: "zalicemorgan",
+        memoryOwner: "hermes",
+      }),
+    );
+    expect(org.teams.find((team) => team.id === "research")?.agentIds).toContain("alice-morgan");
+    expect(replaceConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nextConfig: expect.objectContaining({
+          agents: expect.objectContaining({
+            list: expect.arrayContaining([
+              expect.objectContaining({
+                id: "alice-morgan",
+                workspace: join(runtimeRoot, "agents", "alice-morgan"),
+                agentDir: join(sourceRoot, "agents", "alice-morgan"),
+                model: "hermes-workers/alice-morgan",
+                identity: { name: "Alice Morgan" },
+              }),
+            ]),
+          }),
+        }),
+        afterWrite: { mode: "auto" },
+      }),
+    );
   });
 });

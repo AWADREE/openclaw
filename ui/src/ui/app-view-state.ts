@@ -44,6 +44,7 @@ import type {
   SkillStatusReport,
   StatusSummary,
   ToolsCatalogResult,
+  ZClawAgentCreateResult,
 } from "./types.ts";
 import type { ChatAttachment, ChatQueueItem } from "./ui-types.ts";
 import type { NostrProfileFormState } from "./views/channels.nostr-profile-form.ts";
@@ -231,6 +232,9 @@ export type AppViewState = {
   agentsList: AgentsListResult | null;
   agentsError: string | null;
   agentsSelectedId: string | null;
+  zclawAgentCreateLoading: boolean;
+  zclawAgentCreateError: string | null;
+  zclawAgentCreateResult: ZClawAgentCreateResult | null;
   toolsCatalogLoading: boolean;
   toolsCatalogError: string | null;
   toolsCatalogResult: ToolsCatalogResult | null;

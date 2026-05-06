@@ -1,5 +1,16 @@
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, rename, symlink, writeFile } from "node:fs/promises";
+import { ensureAgentWorkspace } from "../../agents/workspace.js";
+import {
+  applyAgentConfig,
+  findAgentEntryIndex,
+  listAgentEntries,
+} from "../../commands/agents.config.js";
+import { replaceConfigFile } from "../../config/config.js";
+import type { OpenClawConfig } from "../../config/types.openclaw.js";
+import { DEFAULT_AGENT_ID, normalizeAgentId } from "../../routing/session-key.js";
+import { resolveUserPath } from "../../utils.js";
+import { ErrorCodes, errorShape } from "../protocol/index.js";
 import { listAgentsForGateway } from "../session-utils.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
@@ -184,6 +195,32 @@ type OrganizationAgent = {
   description: string | null;
 };
 
+type ZClawCreateAgentParams = {
+  id?: unknown;
+  name?: unknown;
+  role?: unknown;
+  teamId?: unknown;
+  companyScope?: unknown;
+  hermesProfile?: unknown;
+  defaultModel?: unknown;
+  modelBudget?: unknown;
+  toolUse?: unknown;
+  description?: unknown;
+};
+
+type ZClawCreateAgentResult = {
+  agentId: string;
+  name: string;
+  hermesProfile: string;
+  modelPrimary: string;
+  workspace: string;
+  agentDir: string;
+  organizationPath: string;
+  runtimeOrganizationPath: string | null;
+  hermesProfileHome: string;
+  files: string[];
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -294,6 +331,24 @@ function organizationPath(): string {
     process.env.Z_CLAW_ORGANIZATION_PATH?.trim() ||
     `${zClawSourceRoot()}/integration/zclaw_organization.json`
   );
+}
+
+function runtimeOrganizationPath(): string {
+  return `${zClawRuntimeRoot()}/integration/zclaw_organization.json`;
+}
+
+function zClawAgentSourceDir(agentId: string): string {
+  return `${zClawSourceRoot()}/agents/${agentId}`;
+}
+
+function zClawAgentRuntimeDir(agentId: string): string {
+  return `${zClawRuntimeRoot()}/agents/${agentId}`;
+}
+
+function hermesProfileHome(profile: string): string {
+  return profile === "default"
+    ? process.env.HERMES_HOME?.trim() || "/home/z/.hermes"
+    : `${process.env.HERMES_HOME?.trim() || "/home/z/.hermes"}/profiles/${profile}`;
 }
 
 function runsRoot(): string {
@@ -737,6 +792,409 @@ async function probeProviderHealth(baseUrl: string | null): Promise<{
   }
 }
 
+function slugFromName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function requiredString(params: ZClawCreateAgentParams, key: keyof ZClawCreateAgentParams) {
+  const value = params[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function optionalString(
+  params: ZClawCreateAgentParams,
+  key: keyof ZClawCreateAgentParams,
+  fallback: string,
+) {
+  const value = params[key];
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function defaultHermesProfile(agentId: string): string {
+  return `z${agentId.replace(/[^a-z0-9]+/g, "")}`;
+}
+
+function defaultModelForBudget(modelBudget: string): string {
+  return modelBudget === "tool-execution" ? "openai-codex/gpt-5.4-mini" : "ollama-lan/qwen3.5:9b";
+}
+
+function hermesConfigForModel(model: string): string {
+  if (model.startsWith("openai-codex/")) {
+    return `model:
+  default: "${model.slice("openai-codex/".length)}"
+  provider: "openai-codex"
+`;
+  }
+  if (model.startsWith("ollama-lan/")) {
+    return `model:
+  default: "${model.slice("ollama-lan/".length)}"
+  provider: "custom"
+  base_url: "http://192.168.1.34:11434/v1"
+  api_key: "ollama-local"
+  context_length: 65536
+`;
+  }
+  return `model:
+  default: "${model}"
+`;
+}
+
+function soulMarkdown(params: {
+  name: string;
+  agentId: string;
+  companyScope: string;
+  teamId: string;
+  role: string;
+  description: string;
+  defaultModel: string;
+  modelBudget: string;
+  toolUse: string;
+  workspace: string;
+}) {
+  return `# ${params.name}
+
+## Identity
+
+Agent ID: \`${params.agentId}\`
+
+Company scope: \`${params.companyScope}\`
+
+Team: \`${params.teamId}\`
+
+Role: ${params.role}
+
+## Mission
+
+${params.description}
+
+## Default Model
+
+Default: \`${params.defaultModel}\`
+
+Model budget: \`${params.modelBudget}\`
+
+Escalation reviewer: \`openai-codex/gpt-5.5\` through Hermes CEO.
+
+## Best Used For
+
+- Work matching this role and team.
+- Tasks routed by OpenClaw with clear acceptance criteria.
+- Focused contributions that can be verified by another agent or the CEO.
+
+## Do Not Use For
+
+- Work owned by another specialized agent.
+- High-risk decisions without CEO review.
+- Durable memory updates without explicit CEO acceptance.
+
+## Inputs Expected
+
+This agent expects a packet or task brief with objective, relevant context,
+constraints, acceptance criteria, allowed tools, deliverable format, and
+escalation triggers.
+
+## Outputs Required
+
+Return the protocol packet that matches the work. Include assumptions,
+verification, risks, blockers, and memory candidates.
+
+## Tools and Workspace
+
+- Workspace: \`${params.workspace}\`
+- Tool-use class: \`${params.toolUse}\`
+- External side effects: only when explicitly allowed by the task packet.
+
+## Memory Rules
+
+- Treat task context as working memory.
+- Do not write durable memory directly.
+- Propose durable facts as \`memory_candidates\`.
+- Mark uncertainty clearly.
+
+## Escalation Triggers
+
+Escalate to Hermes CEO when requirements are ambiguous, confidence is low, tool
+access is missing, security/privacy/destructive/public actions are involved, the
+task requires architecture or product judgment, or the same attempt fails twice.
+
+## Style
+
+- Be concise.
+- Use concrete outputs.
+- Do not narrate irrelevant reasoning.
+- Prefer checklists for status and verification.
+`;
+}
+
+function agentsMarkdown(params: { agentId: string; role: string }) {
+  return `# ${params.agentId}
+
+- \`SOUL.md\` defines this agent's role behavior.
+- Follow \`/home/z/Claw/integration/OPERATING_PROTOCOL.md\`.
+- Follow \`/home/z/Claw/integration/STANDARD_WORKFLOWS.md\` when routed through a standard workflow.
+- Role: ${params.role}
+`;
+}
+
+function identityMarkdown(params: { name: string; agentId: string; role: string }) {
+  return `# Identity
+
+Name: ${params.name}
+
+Agent ID: \`${params.agentId}\`
+
+Role: ${params.role}
+`;
+}
+
+async function writeTextFile(pathname: string, content: string, files: string[]) {
+  await mkdir(pathname.slice(0, pathname.lastIndexOf("/")), { recursive: true });
+  await writeFile(pathname, content, "utf8");
+  files.push(pathname);
+}
+
+async function writeJsonAtomic(pathname: string, body: unknown) {
+  await mkdir(pathname.slice(0, pathname.lastIndexOf("/")), { recursive: true });
+  const tmp = `${pathname}.tmp-${process.pid}-${Date.now()}`;
+  await writeFile(tmp, `${JSON.stringify(body, null, 2)}\n`, "utf8");
+  await rename(tmp, pathname);
+}
+
+async function ensureAuthSymlink(profileHome: string, files: string[]) {
+  const target = "/home/z/.hermes/auth.json";
+  const link = `${profileHome}/auth.json`;
+  try {
+    const stat = await lstat(link);
+    if (stat.isSymbolicLink() || stat.isFile()) {
+      return;
+    }
+  } catch {
+    // Missing link is created below.
+  }
+  await symlink(target, link);
+  files.push(link);
+}
+
+async function ensureHermesProfile(params: {
+  profile: string;
+  soul: string;
+  config: string;
+  files: string[];
+}) {
+  const home = hermesProfileHome(params.profile);
+  await mkdir(home, { recursive: true, mode: 0o700 });
+  for (const child of ["sessions", "memories", "skills", "logs", "workspace", "home"]) {
+    await mkdir(`${home}/${child}`, { recursive: true });
+  }
+  await writeTextFile(`${home}/SOUL.md`, params.soul, params.files);
+  await writeTextFile(`${home}/config.yaml`, params.config, params.files);
+  await ensureAuthSymlink(home, params.files);
+}
+
+async function readOrganizationBody(): Promise<Record<string, unknown>> {
+  const raw = await readFile(organizationPath(), "utf8");
+  const parsed = JSON.parse(raw) as unknown;
+  if (!isRecord(parsed)) {
+    throw new Error("Z-Claw organization registry is not an object");
+  }
+  return parsed;
+}
+
+function updateOrganizationForAgent(params: {
+  body: Record<string, unknown>;
+  agent: OrganizationAgent;
+}) {
+  const teamId = params.agent.teamId ?? "research";
+  const companyScope = params.agent.companyScope ?? "shared";
+  const agents = Array.isArray(params.body.agents) ? [...params.body.agents] : [];
+  if (
+    agents.some(
+      (entry) =>
+        isRecord(entry) &&
+        asTrimmedString(entry.id)?.toLowerCase() === params.agent.id.toLowerCase(),
+    )
+  ) {
+    throw new Error(`Z-Claw agent "${params.agent.id}" already exists`);
+  }
+  agents.push({
+    id: params.agent.id,
+    name: params.agent.name,
+    role: params.agent.role,
+    companyScope: params.agent.companyScope,
+    teamId: params.agent.teamId,
+    hermesProfile: params.agent.hermesProfile,
+    defaultModel: params.agent.defaultModel,
+    modelBudget: params.agent.modelBudget,
+    toolUse: params.agent.toolUse,
+    memoryOwner: "hermes",
+    description: params.agent.description,
+  });
+
+  const teams = Array.isArray(params.body.teams) ? [...params.body.teams] : [];
+  const teamIndex = teams.findIndex(
+    (entry) => isRecord(entry) && asTrimmedString(entry.id) === teamId,
+  );
+  if (teamIndex >= 0) {
+    const team = isRecord(teams[teamIndex]) ? { ...teams[teamIndex] } : {};
+    const ids = asStringArray(team.agentIds);
+    team.agentIds = ids.includes(params.agent.id) ? ids : [...ids, params.agent.id];
+    teams[teamIndex] = team;
+  } else {
+    teams.push({
+      id: teamId,
+      name: teamId
+        .split("-")
+        .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+        .join(" "),
+      scope: companyScope,
+      mission: params.agent.description,
+      agentIds: [params.agent.id],
+    });
+  }
+
+  const companies = Array.isArray(params.body.companies) ? [...params.body.companies] : [];
+  const companyIndex = companies.findIndex(
+    (entry) => isRecord(entry) && asTrimmedString(entry.id) === companyScope,
+  );
+  if (companyIndex >= 0) {
+    const company = isRecord(companies[companyIndex]) ? { ...companies[companyIndex] } : {};
+    const teamIds = asStringArray(company.teamIds);
+    company.teamIds = teamIds.includes(teamId) ? teamIds : [...teamIds, teamId];
+    companies[companyIndex] = company;
+  }
+
+  return {
+    ...params.body,
+    generatedBy: "zclaw-agent-provisioner",
+    companies,
+    teams,
+    agents,
+  };
+}
+
+async function provisionZClawAgent(
+  cfg: OpenClawConfig,
+  params: ZClawCreateAgentParams,
+): Promise<ZClawCreateAgentResult> {
+  const rawName = requiredString(params, "name");
+  const rawRole = requiredString(params, "role");
+  if (!rawName || !rawRole) {
+    throw new Error("name and role are required");
+  }
+  const agentId = normalizeAgentId(requiredString(params, "id") ?? slugFromName(rawName));
+  if (!agentId || agentId === DEFAULT_AGENT_ID) {
+    throw new Error(`invalid or reserved agent id: ${agentId || "(empty)"}`);
+  }
+  if (findAgentEntryIndex(listAgentEntries(cfg), agentId) >= 0) {
+    throw new Error(`OpenClaw agent "${agentId}" already exists`);
+  }
+
+  const companyScope = optionalString(params, "companyScope", "shared");
+  const teamId = optionalString(params, "teamId", "research");
+  const modelBudget = optionalString(params, "modelBudget", "local-default");
+  const defaultModel = optionalString(params, "defaultModel", defaultModelForBudget(modelBudget));
+  const toolUse = optionalString(params, "toolUse", "role-specific");
+  const description = optionalString(params, "description", rawRole);
+  const hermesProfile = optionalString(params, "hermesProfile", defaultHermesProfile(agentId));
+  const workspace = resolveUserPath(zClawAgentRuntimeDir(agentId));
+  const sourceDir = zClawAgentSourceDir(agentId);
+  const files: string[] = [];
+
+  const soul = soulMarkdown({
+    name: rawName,
+    agentId,
+    companyScope,
+    teamId,
+    role: rawRole,
+    description,
+    defaultModel,
+    modelBudget,
+    toolUse,
+    workspace,
+  });
+
+  await ensureAgentWorkspace({ dir: workspace, ensureBootstrapFiles: true });
+  await mkdir(sourceDir, { recursive: true });
+  for (const dir of [workspace, sourceDir]) {
+    await writeTextFile(`${dir}/SOUL.md`, soul, files);
+    await writeTextFile(`${dir}/AGENTS.md`, agentsMarkdown({ agentId, role: rawRole }), files);
+    await writeTextFile(
+      `${dir}/IDENTITY.md`,
+      identityMarkdown({ name: rawName, agentId, role: rawRole }),
+      files,
+    );
+    await writeTextFile(`${dir}/TOOLS.md`, `# Tools\n\nTool-use class: \`${toolUse}\`\n`, files);
+    await writeTextFile(
+      `${dir}/USER.md`,
+      "# User Context\n\nFollow task packets and CEO instructions.\n",
+      files,
+    );
+    await writeTextFile(
+      `${dir}/HEARTBEAT.md`,
+      "# Heartbeat\n\nReport concise status when asked.\n",
+      files,
+    );
+  }
+  await ensureHermesProfile({
+    profile: hermesProfile,
+    soul,
+    config: hermesConfigForModel(defaultModel),
+    files,
+  });
+
+  const body = await readOrganizationBody();
+  const orgAgent: OrganizationAgent = {
+    id: agentId,
+    name: rawName,
+    role: rawRole,
+    companyScope,
+    teamId,
+    hermesProfile,
+    defaultModel,
+    modelBudget,
+    toolUse,
+    memoryOwner: "hermes",
+    description,
+  };
+  const nextOrg = updateOrganizationForAgent({ body, agent: orgAgent });
+  await writeJsonAtomic(organizationPath(), nextOrg);
+  files.push(organizationPath());
+  const runtimeOrg = runtimeOrganizationPath();
+  if (runtimeOrg !== organizationPath()) {
+    await writeJsonAtomic(runtimeOrg, nextOrg);
+    files.push(runtimeOrg);
+  }
+
+  const agentDir = resolveUserPath(sourceDir);
+  const nextConfig = applyAgentConfig(cfg, {
+    agentId,
+    name: rawName,
+    workspace,
+    agentDir,
+    model: `hermes-workers/${agentId}`,
+    identity: { name: rawName },
+  });
+  await replaceConfigFile({ nextConfig, afterWrite: { mode: "auto" } });
+
+  return {
+    agentId,
+    name: rawName,
+    hermesProfile,
+    modelPrimary: `hermes-workers/${agentId}`,
+    workspace,
+    agentDir,
+    organizationPath: organizationPath(),
+    runtimeOrganizationPath: runtimeOrg === organizationPath() ? null : runtimeOrg,
+    hermesProfileHome: hermesProfileHome(hermesProfile),
+    files,
+  };
+}
+
 function readProviders(cfg: { models?: unknown }): Record<string, Record<string, unknown>> {
   const models = isRecord(cfg.models) ? cfg.models : {};
   const providers = isRecord(models.providers) ? models.providers : {};
@@ -750,6 +1208,29 @@ function readProviders(cfg: { models?: unknown }): Record<string, Record<string,
 }
 
 export const hybridHandlers: GatewayRequestHandlers = {
+  "zclaw.agents.create": async ({ params, respond, context }) => {
+    try {
+      if (!isRecord(params)) {
+        respond(
+          false,
+          undefined,
+          errorShape(ErrorCodes.INVALID_REQUEST, "params must be an object"),
+        );
+        return;
+      }
+      const result = await provisionZClawAgent(
+        context.getRuntimeConfig(),
+        params as ZClawCreateAgentParams,
+      );
+      respond(true, result satisfies ZClawCreateAgentResult);
+    } catch (err) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, err instanceof Error ? err.message : String(err)),
+      );
+    }
+  },
   "hybrid.status": async ({ context, respond }) => {
     const cfg = context.getRuntimeConfig();
     const organization = await readOrganization();
