@@ -131,9 +131,6 @@ function buildRooms(summary: HybridSummary): OfficeRoom[] {
   for (const teamId of teamIds) {
     const agents = byTeam.get(teamId) ?? [];
     const team = summary.organization?.teams.find((entry) => entry.id === teamId);
-    if (agents.length === 0 && teamId !== "executive") {
-      continue;
-    }
     rooms.push({
       id: teamId,
       name: team?.name ?? teamId,
@@ -220,6 +217,10 @@ function renderAgentSprite(agent: HybridAgentSummary) {
 
 function renderRoom(room: OfficeRoom) {
   const workstations = Math.max(2, Math.min(5, room.agents.length || 2));
+  const emptyLabel =
+    room.kind === "common"
+      ? "No idle agents in the common room."
+      : "Department office is ready. No active agents assigned right now.";
   return html`
     <section class="office-room office-room--${room.kind}">
       <div class="office-room__header">
@@ -251,7 +252,7 @@ function renderRoom(room: OfficeRoom) {
                   ${renderAgentSprite(agent)}
                 </div>`,
             )
-          : html`<div class="office-room__empty">No active agents in this room.</div>`}
+          : html`<div class="office-room__empty">${emptyLabel}</div>`}
       </div>
     </section>
   `;
