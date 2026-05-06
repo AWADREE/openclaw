@@ -378,6 +378,7 @@ export const zh_TW: TranslationMap = {
   tabs: {
     agents: "代理",
     overview: "概覽",
+    hybrid: "Hybrid",
     channels: "頻道",
     instances: "實例",
     sessions: "工作階段",
@@ -399,6 +400,7 @@ export const zh_TW: TranslationMap = {
   subtitles: {
     agents: "工作區、工具、身份。",
     overview: "狀態、入口點、健康。",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "頻道和設置。",
     instances: "已連接客戶端和節點。",
     sessions: "活動會話和默認設置。",

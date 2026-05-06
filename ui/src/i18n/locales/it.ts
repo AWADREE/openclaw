@@ -382,6 +382,7 @@ export const it: TranslationMap = {
   tabs: {
     agents: "Agenti",
     overview: "Panoramica",
+    hybrid: "Hybrid",
     channels: "Canali",
     instances: "Istanze",
     sessions: "Sessioni",
@@ -403,6 +404,7 @@ export const it: TranslationMap = {
   subtitles: {
     agents: "Spazi di lavoro, strumenti, identità.",
     overview: "Stato, punti di ingresso, integrità.",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "Canali e impostazioni.",
     instances: "Client e nodi connessi.",
     sessions: "Sessioni attive e valori predefiniti.",

@@ -380,6 +380,7 @@ export const id: TranslationMap = {
   tabs: {
     agents: "Agen",
     overview: "Ikhtisar",
+    hybrid: "Hybrid",
     channels: "Saluran",
     instances: "Instans",
     sessions: "Sesi",
@@ -401,6 +402,7 @@ export const id: TranslationMap = {
   subtitles: {
     agents: "Ruang kerja, alat, identitas.",
     overview: "Status, titik masuk, kesehatan.",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "Saluran dan pengaturan.",
     instances: "Klien dan node yang terhubung.",
     sessions: "Sesi aktif dan default.",

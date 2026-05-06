@@ -380,6 +380,7 @@ export const vi: TranslationMap = {
   tabs: {
     agents: "Agent",
     overview: "Tổng quan",
+    hybrid: "Hybrid",
     channels: "Kênh",
     instances: "Phiên bản",
     sessions: "Phiên",
@@ -401,6 +402,7 @@ export const vi: TranslationMap = {
   subtitles: {
     agents: "Không gian làm việc, công cụ, danh tính.",
     overview: "Trạng thái, điểm vào, tình trạng.",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "Kênh và cài đặt.",
     instances: "Máy khách và nút đã kết nối.",
     sessions: "Phiên đang hoạt động và mặc định.",

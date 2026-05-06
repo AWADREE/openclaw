@@ -381,6 +381,7 @@ export const fa: TranslationMap = {
   tabs: {
     agents: "عامل‌ها",
     overview: "نمای کلی",
+    hybrid: "Hybrid",
     channels: "کانال‌ها",
     instances: "نمونه‌ها",
     sessions: "نشست‌ها",
@@ -402,6 +403,7 @@ export const fa: TranslationMap = {
   subtitles: {
     agents: "فضاهای کاری، ابزارها، هویت‌ها.",
     overview: "وضعیت، نقاط ورود، سلامت.",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "کانال‌ها و تنظیمات.",
     instances: "کلاینت‌ها و گره‌های متصل.",
     sessions: "نشست‌های فعال و پیش‌فرض‌ها.",

@@ -379,6 +379,7 @@ export const ko: TranslationMap = {
   tabs: {
     agents: "에이전트",
     overview: "개요",
+    hybrid: "Hybrid",
     channels: "채널",
     instances: "인스턴스",
     sessions: "세션",
@@ -400,6 +401,7 @@ export const ko: TranslationMap = {
   subtitles: {
     agents: "워크스페이스, 도구, 정체성.",
     overview: "상태, 진입점, 상태 정보.",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "채널 및 설정.",
     instances: "연결된 클라이언트와 노드.",
     sessions: "활성 세션 및 기본값.",

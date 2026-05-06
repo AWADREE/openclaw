@@ -363,6 +363,9 @@ export async function refreshActiveTab(host: SettingsHost) {
       case "overview":
         await loadOverview(host);
         break;
+      case "hybrid":
+        await Promise.allSettled([loadAgents(app), loadSessions(app), loadUsage(app)]);
+        break;
       case "channels":
         await loadChannelsTab(host);
         break;

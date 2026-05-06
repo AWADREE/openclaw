@@ -381,6 +381,7 @@ export const uk: TranslationMap = {
   tabs: {
     agents: "Агенти",
     overview: "Огляд",
+    hybrid: "Hybrid",
     channels: "Канали",
     instances: "Екземпляри",
     sessions: "Сеанси",
@@ -402,6 +403,7 @@ export const uk: TranslationMap = {
   subtitles: {
     agents: "Робочі простори, інструменти, ідентичності.",
     overview: "Стан, точки входу, справність.",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "Канали та налаштування.",
     instances: "Підключені клієнти та вузли.",
     sessions: "Активні сеанси та типові значення.",

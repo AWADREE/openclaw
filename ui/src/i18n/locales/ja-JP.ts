@@ -383,6 +383,7 @@ export const ja_JP: TranslationMap = {
   tabs: {
     agents: "エージェント",
     overview: "概要",
+    hybrid: "Hybrid",
     channels: "チャンネル",
     instances: "インスタンス",
     sessions: "セッション",
@@ -404,6 +405,7 @@ export const ja_JP: TranslationMap = {
   subtitles: {
     agents: "ワークスペース、ツール、ID。",
     overview: "ステータス、エントリーポイント、健全性。",
+    hybrid: "OpenClaw orchestration with Hermes worker cognition.",
     channels: "チャンネルと設定。",
     instances: "接続されたクライアントとノード。",
     sessions: "アクティブなセッションとデフォルト。",

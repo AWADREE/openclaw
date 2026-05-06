@@ -123,6 +123,7 @@ import {
   updateSkillEdit,
   updateSkillEnabled,
 } from "./controllers/skills.ts";
+import { loadUsage } from "./controllers/usage.ts";
 import { getCronJobPayload } from "./cron-payload.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "./external-link.ts";
 import { icons } from "./icons.ts";
@@ -166,6 +167,7 @@ import { renderDreamingRestartConfirmation } from "./views/dreaming-restart-conf
 import { renderDreaming } from "./views/dreaming.ts";
 import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
+import { renderHybrid } from "./views/hybrid.ts";
 import { renderLoginGate } from "./views/login-gate.ts";
 import { renderOverview } from "./views/overview.ts";
 
@@ -1667,6 +1669,20 @@ export function renderApp(state: AppViewState) {
               onRefresh: () => state.loadOverview({ refresh: true }),
               onNavigate: (tab) => state.setTab(tab as import("./navigation.ts").Tab),
               onRefreshLogs: () => state.loadOverview({ refresh: true }),
+            })
+          : nothing}
+        ${state.tab === "hybrid"
+          ? renderHybrid({
+              connected: state.connected,
+              agentsList: state.agentsList,
+              sessionsResult: state.sessionsResult,
+              usageResult: state.usageResult,
+              loading: state.agentsLoading || state.sessionsLoading || state.usageLoading,
+              error: state.agentsError ?? state.sessionsError ?? state.usageError,
+              onRefresh: () => {
+                void Promise.allSettled([loadAgents(state), loadSessions(state), loadUsage(state)]);
+              },
+              onNavigate: (tab) => state.setTab(tab as import("./navigation.ts").Tab),
             })
           : nothing}
         ${state.tab === "channels"
