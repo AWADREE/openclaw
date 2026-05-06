@@ -9,6 +9,7 @@
 @import "./styles/usage.css";
 @import "./styles/dreams.css";
 @import "./styles/hybrid.css";
+@import "./styles/office-space.css";
 @import "@create-markdown/preview/themes/system.css";
 
 .cm-preview {

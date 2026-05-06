@@ -170,6 +170,7 @@ import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
 import { renderHybrid } from "./views/hybrid.ts";
 import { renderLoginGate } from "./views/login-gate.ts";
+import { renderOfficeSpace } from "./views/office-space.ts";
 import { renderOverview } from "./views/overview.ts";
 
 let _pendingUpdate: (() => void) | undefined;
@@ -1674,6 +1675,31 @@ export function renderApp(state: AppViewState) {
           : nothing}
         ${state.tab === "hybrid"
           ? renderHybrid({
+              connected: state.connected,
+              agentsList: state.agentsList,
+              sessionsResult: state.sessionsResult,
+              usageResult: state.usageResult,
+              hybridResult: state.hybridResult,
+              loading:
+                state.hybridLoading ||
+                state.agentsLoading ||
+                state.sessionsLoading ||
+                state.usageLoading,
+              error:
+                state.hybridError ?? state.agentsError ?? state.sessionsError ?? state.usageError,
+              onRefresh: () => {
+                void Promise.allSettled([
+                  loadHybridStatus(state),
+                  loadAgents(state),
+                  loadSessions(state),
+                  loadUsage(state),
+                ]);
+              },
+              onNavigate: (tab) => state.setTab(tab as import("./navigation.ts").Tab),
+            })
+          : nothing}
+        ${state.tab === "officeSpace"
+          ? renderOfficeSpace({
               connected: state.connected,
               agentsList: state.agentsList,
               sessionsResult: state.sessionsResult,

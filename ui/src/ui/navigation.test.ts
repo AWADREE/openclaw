@@ -29,6 +29,7 @@ describe("iconForTab", () => {
     expect(iconForTab("chat")).toBe("messageSquare");
     expect(iconForTab("overview")).toBe("barChart");
     expect(iconForTab("hybrid")).toBe("brain");
+    expect(iconForTab("officeSpace")).toBe("monitor");
     expect(iconForTab("channels")).toBe("link");
     expect(iconForTab("instances")).toBe("radio");
     expect(iconForTab("sessions")).toBe("fileText");
@@ -60,6 +61,7 @@ describe("titleForTab", () => {
     expect(titleForTab("chat")).toBe("Chat");
     expect(titleForTab("overview")).toBe("Overview");
     expect(titleForTab("hybrid")).toBe("Hybrid");
+    expect(titleForTab("officeSpace")).toBe("Office Space");
     expect(titleForTab("cron")).toBe("Cron Jobs");
   });
 });
@@ -120,6 +122,7 @@ describe("pathForTab", () => {
     expect(pathForTab("chat")).toBe("/chat");
     expect(pathForTab("overview")).toBe("/overview");
     expect(pathForTab("hybrid")).toBe("/hybrid");
+    expect(pathForTab("officeSpace")).toBe("/office-space");
   });
 
   it("prepends base path", () => {
@@ -133,6 +136,7 @@ describe("tabFromPath", () => {
     expect(tabFromPath("/chat")).toBe("chat");
     expect(tabFromPath("/overview")).toBe("overview");
     expect(tabFromPath("/hybrid")).toBe("hybrid");
+    expect(tabFromPath("/office-space")).toBe("officeSpace");
     expect(tabFromPath("/sessions")).toBe("sessions");
     expect(tabFromPath("/dreaming")).toBe("dreams");
     expect(tabFromPath("/dreams")).toBe("dreams");
@@ -166,6 +170,7 @@ describe("inferBasePathFromPathname", () => {
     expect(inferBasePathFromPathname("/chat")).toBe("");
     expect(inferBasePathFromPathname("/overview")).toBe("");
     expect(inferBasePathFromPathname("/hybrid")).toBe("");
+    expect(inferBasePathFromPathname("/office-space")).toBe("");
     expect(inferBasePathFromPathname("/dreaming")).toBe("");
     expect(inferBasePathFromPathname("/dreams")).toBe("");
   });

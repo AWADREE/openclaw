@@ -24,4 +24,10 @@ describe("TAB_GROUPS", () => {
     expect(tabFromPath("/ai-agents")).toBe("aiAgents");
     expect(tabFromPath("/config")).toBe("config");
   });
+
+  it("publishes office space in the control group", () => {
+    const control = TAB_GROUPS.find((group) => group.label === "control");
+    expect(control?.tabs).toContain("officeSpace");
+    expect(tabFromPath("/office-space")).toBe("officeSpace");
+  });
 });

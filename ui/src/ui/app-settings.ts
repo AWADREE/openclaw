@@ -366,6 +366,7 @@ export async function refreshActiveTab(host: SettingsHost) {
         await loadOverview(host);
         break;
       case "hybrid":
+      case "officeSpace":
         await Promise.allSettled([
           loadHybridStatus(app),
           loadAgents(app),
