@@ -408,6 +408,7 @@ export type HybridStatusResult = {
   }>;
   telemetry: {
     openclawUsageAuthority: "observed";
+    hermesSessionMetricsAuthority: "observed";
     hermesBillingAuthority: "unavailable";
     hermesMemoryAuthority: "external";
   };

@@ -72,6 +72,7 @@ export type HybridStatusResult = {
   agents: HybridAgentStatus[];
   telemetry: {
     openclawUsageAuthority: "observed";
+    hermesSessionMetricsAuthority: "observed";
     hermesBillingAuthority: "unavailable";
     hermesMemoryAuthority: "external";
   };
@@ -323,7 +324,7 @@ export const hybridHandlers: GatewayRequestHandlers = {
     }
     if (hermesBackedCount > 0) {
       caveats.push(
-        "Hermes memory and subscription telemetry are external to OpenClaw until a Hermes metrics bridge is connected.",
+        "Hermes aggregate session metrics are available through the worker adapter. Exact subscription billing and durable-memory semantics remain external to OpenClaw.",
       );
     }
     respond(true, {
@@ -333,6 +334,7 @@ export const hybridHandlers: GatewayRequestHandlers = {
       agents: finalAgents,
       telemetry: {
         openclawUsageAuthority: "observed",
+        hermesSessionMetricsAuthority: "observed",
         hermesBillingAuthority: "unavailable",
         hermesMemoryAuthority: "external",
       },

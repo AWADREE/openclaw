@@ -118,6 +118,7 @@ describe("summarizeHybridState", () => {
         ],
         telemetry: {
           openclawUsageAuthority: "observed",
+          hermesSessionMetricsAuthority: "observed",
           hermesBillingAuthority: "unavailable",
           hermesMemoryAuthority: "external",
         },
