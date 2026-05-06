@@ -15,11 +15,17 @@ type HybridAgentStatus = "active" | "idle" | "unknown";
 export type HybridAgentSummary = {
   id: string;
   name: string;
+  role: string | null;
+  companyScope: string | null;
+  teamId: string | null;
   workspace: string | null;
   modelPrimary: string | null;
   hermesBacked: boolean;
   hermesProfile: string | null;
   runtimeSource: string | null;
+  modelBudget: string | null;
+  toolUse: string | null;
+  description: string | null;
   sessionCount: number;
   activeSessionCount: number;
   lastActiveAt: number | null;
@@ -37,6 +43,7 @@ export type HybridSummary = {
   openclawNativeTokens: number;
   agents: HybridAgentSummary[];
   providers: HybridStatusResult["providers"];
+  organization: HybridStatusResult["organization"];
   caveats: string[];
 };
 
@@ -145,11 +152,17 @@ export function summarizeHybridState(props: {
     return {
       id: agent.id,
       name: backend?.name ?? agent.identity?.name?.trim() ?? agent.name?.trim() ?? agent.id,
+      role: backend?.role ?? null,
+      companyScope: backend?.companyScope ?? null,
+      teamId: backend?.teamId ?? null,
       workspace: backend?.workspace ?? agent.workspace?.trim() ?? null,
       modelPrimary: backend?.modelPrimary ?? primary,
       hermesBacked: backend?.hermesBacked ?? isHermesWorkerModel(primary),
       hermesProfile: backend?.hermesProfile ?? hermesProfileFromModel(primary),
       runtimeSource: backend?.runtimeSource ?? agent.agentRuntime?.source ?? null,
+      modelBudget: backend?.modelBudget ?? null,
+      toolUse: backend?.toolUse ?? null,
+      description: backend?.description ?? null,
       sessionCount: agentSessions.length,
       activeSessionCount: agentSessions.filter(isActiveSession).length,
       lastActiveAt,
@@ -182,6 +195,7 @@ export function summarizeHybridState(props: {
     openclawNativeTokens,
     agents,
     providers: props.hybridResult?.providers ?? [],
+    organization: props.hybridResult?.organization ?? null,
     caveats,
   };
 }
@@ -207,11 +221,23 @@ function renderAgentCard(agent: HybridAgentSummary) {
       <div class="hybrid-agent__topline">
         <div>
           <h3>${agent.name}</h3>
-          <div class="hybrid-agent__id">${agent.id}</div>
+          <div class="hybrid-agent__id">${agent.role ?? agent.id}</div>
         </div>
         ${renderStatusPill(agent.status)}
       </div>
       <dl class="hybrid-agent__facts">
+        <div>
+          <dt>Routing ID</dt>
+          <dd>${agent.id}</dd>
+        </div>
+        <div>
+          <dt>Team</dt>
+          <dd>${agent.teamId ?? "unassigned"}</dd>
+        </div>
+        <div>
+          <dt>Scope</dt>
+          <dd>${agent.companyScope ?? "unknown"}</dd>
+        </div>
         <div>
           <dt>Brain</dt>
           <dd>${agent.hermesBacked ? "Hermes worker" : "OpenClaw model"}</dd>
@@ -223,6 +249,14 @@ function renderAgentCard(agent: HybridAgentSummary) {
         <div>
           <dt>Model route</dt>
           <dd>${agent.modelPrimary ?? "default"}</dd>
+        </div>
+        <div>
+          <dt>Budget</dt>
+          <dd>${agent.modelBudget ?? "not declared"}</dd>
+        </div>
+        <div>
+          <dt>Tool use</dt>
+          <dd>${agent.toolUse ?? "not declared"}</dd>
         </div>
         <div>
           <dt>Sessions</dt>
@@ -237,7 +271,43 @@ function renderAgentCard(agent: HybridAgentSummary) {
           <dd>${formatTokens(agent.usageTokens)} · ${formatCost(agent.usageCost)}</dd>
         </div>
       </dl>
+      ${agent.description
+        ? html`<p class="hybrid-agent__description">${agent.description}</p>`
+        : nothing}
     </article>
+  `;
+}
+
+function renderOrganization(organization: HybridStatusResult["organization"]) {
+  if (!organization) {
+    return html`<div class="muted" style="margin-top: 12px">
+      No Z-Claw organization registry is available yet.
+    </div>`;
+  }
+  return html`
+    <div class="hybrid-org">
+      ${organization.companies.map(
+        (company) => html`
+          <article class="hybrid-company">
+            <div>
+              <h4>${company.name}</h4>
+              <span>${company.kind}</span>
+            </div>
+            ${company.mission ? html`<p>${company.mission}</p>` : nothing}
+            <div class="hybrid-company__teams">
+              ${company.teams.map(
+                (team) => html`
+                  <span
+                    >${team.name} · ${team.agentIds.length}
+                    agent${team.agentIds.length === 1 ? "" : "s"}</span
+                  >
+                `,
+              )}
+            </div>
+          </article>
+        `,
+      )}
+    </div>
   `;
 }
 
@@ -392,6 +462,11 @@ export function renderHybrid(props: HybridProps) {
               </ul>`
             : html`<div class="muted">No telemetry caveats detected.</div>`}
         </div>
+      </section>
+
+      <section class="hybrid-panel">
+        <h3>Companies and Teams</h3>
+        ${renderOrganization(summary.organization)}
       </section>
 
       <section class="hybrid-panel">

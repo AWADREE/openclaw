@@ -8,6 +8,7 @@
 .hybrid-panel,
 .hybrid-agent,
 .hybrid-provider,
+.hybrid-company,
 .hybrid-metric {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -137,6 +138,54 @@
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 12px;
   margin-top: 12px;
+}
+
+.hybrid-org {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.hybrid-company {
+  padding: 14px;
+}
+
+.hybrid-company > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hybrid-company h4 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.hybrid-company span,
+.hybrid-agent__description {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.hybrid-company p,
+.hybrid-agent__description {
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+
+.hybrid-company__teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.hybrid-company__teams span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 8px;
 }
 
 .hybrid-profile-list {

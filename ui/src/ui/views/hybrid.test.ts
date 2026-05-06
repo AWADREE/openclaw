@@ -93,6 +93,30 @@ describe("summarizeHybridState", () => {
       hybridResult: {
         ok: true,
         generatedAt: 1,
+        organization: {
+          schemaVersion: 1,
+          systemName: "Z Claw",
+          sourcePath: "/home/z/Claw/integration/zclaw_organization.json",
+          companies: [
+            {
+              id: "shared",
+              name: "Shared Services",
+              kind: "shared",
+              mission: "Reusable teams.",
+              teamIds: ["engineering"],
+              teams: [{ id: "engineering", name: "Engineering", agentIds: ["builder"] }],
+            },
+          ],
+          teams: [
+            {
+              id: "engineering",
+              name: "Engineering",
+              scope: "shared",
+              mission: "Build software.",
+              agentIds: ["builder"],
+            },
+          ],
+        },
         providers: [
           {
             id: "hermes-workers",
@@ -107,6 +131,9 @@ describe("summarizeHybridState", () => {
           {
             id: "builder",
             name: "Owen Carter",
+            role: "Software Coder",
+            companyScope: "shared",
+            teamId: "engineering",
             workspace: "/home/z/Claw/agents/builder",
             modelPrimary: "hermes-workers/builder",
             providerId: "hermes-workers",
@@ -114,6 +141,9 @@ describe("summarizeHybridState", () => {
             hermesProfile: "builder",
             runtimeSource: "agent",
             memoryOwner: "hermes",
+            modelBudget: "tool-execution",
+            toolUse: "filesystem-and-tests",
+            description: "Owns scoped implementation work.",
           },
         ],
         telemetry: {
@@ -131,9 +161,12 @@ describe("summarizeHybridState", () => {
     expect(summary.agents[0]).toMatchObject({
       id: "builder",
       name: "Owen Carter",
+      role: "Software Coder",
+      teamId: "engineering",
       hermesBacked: true,
       hermesProfile: "builder",
     });
+    expect(summary.organization?.companies[0]?.name).toBe("Shared Services");
     expect(summary.caveats).toContain("Hermes metrics bridge pending.");
   });
 });

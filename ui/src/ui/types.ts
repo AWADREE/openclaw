@@ -346,6 +346,30 @@ export type AgentsListResult = {
 export type HybridStatusResult = {
   ok: true;
   generatedAt: number;
+  organization: {
+    schemaVersion: number;
+    systemName: string;
+    sourcePath: string;
+    companies: Array<{
+      id: string;
+      name: string;
+      kind: "shared" | "company";
+      mission: string | null;
+      teamIds: string[];
+      teams: Array<{
+        id: string;
+        name: string;
+        agentIds: string[];
+      }>;
+    }>;
+    teams: Array<{
+      id: string;
+      name: string;
+      scope: string;
+      mission: string | null;
+      agentIds: string[];
+    }>;
+  } | null;
   providers: Array<{
     id: string;
     kind: "hermes-worker" | "model-provider";
@@ -398,6 +422,9 @@ export type HybridStatusResult = {
   agents: Array<{
     id: string;
     name: string;
+    role: string | null;
+    companyScope: string | null;
+    teamId: string | null;
     workspace: string | null;
     modelPrimary: string | null;
     providerId: string | null;
@@ -405,6 +432,9 @@ export type HybridStatusResult = {
     hermesProfile: string | null;
     runtimeSource: string | null;
     memoryOwner: "hermes" | "openclaw" | "unknown";
+    modelBudget: string | null;
+    toolUse: string | null;
+    description: string | null;
   }>;
   telemetry: {
     openclawUsageAuthority: "observed";

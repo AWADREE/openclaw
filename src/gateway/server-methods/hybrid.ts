@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { listAgentsForGateway } from "../session-utils.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
@@ -56,6 +57,9 @@ type AdapterProfileStatus = {
 type HybridAgentStatus = {
   id: string;
   name: string;
+  role: string | null;
+  companyScope: string | null;
+  teamId: string | null;
   workspace: string | null;
   modelPrimary: string | null;
   providerId: string | null;
@@ -63,11 +67,15 @@ type HybridAgentStatus = {
   hermesProfile: string | null;
   runtimeSource: string | null;
   memoryOwner: "hermes" | "openclaw" | "unknown";
+  modelBudget: string | null;
+  toolUse: string | null;
+  description: string | null;
 };
 
 export type HybridStatusResult = {
   ok: true;
   generatedAt: number;
+  organization: HybridOrganization | null;
   providers: ProviderStatus[];
   agents: HybridAgentStatus[];
   telemetry: {
@@ -77,6 +85,49 @@ export type HybridStatusResult = {
     hermesMemoryAuthority: "external";
   };
   caveats: string[];
+};
+
+type HybridOrganization = {
+  schemaVersion: number;
+  systemName: string;
+  sourcePath: string;
+  companies: HybridCompany[];
+  teams: HybridTeam[];
+};
+
+type HybridCompany = {
+  id: string;
+  name: string;
+  kind: "shared" | "company";
+  mission: string | null;
+  teamIds: string[];
+  teams: Array<{
+    id: string;
+    name: string;
+    agentIds: string[];
+  }>;
+};
+
+type HybridTeam = {
+  id: string;
+  name: string;
+  scope: string;
+  mission: string | null;
+  agentIds: string[];
+};
+
+type OrganizationAgent = {
+  id: string;
+  name: string;
+  role: string | null;
+  companyScope: string | null;
+  teamId: string | null;
+  hermesProfile: string | null;
+  defaultModel: string | null;
+  modelBudget: string | null;
+  toolUse: string | null;
+  memoryOwner: string | null;
+  description: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -144,6 +195,152 @@ function asNumberOrNull(value: unknown): number | null {
 
 function asBoolean(value: unknown): boolean {
   return value === true;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => asTrimmedString(entry))
+    .filter((entry): entry is string => Boolean(entry));
+}
+
+function organizationPath(): string {
+  return (
+    process.env.Z_CLAW_ORGANIZATION_PATH?.trim() ||
+    "/home/z/Claw/integration/zclaw_organization.json"
+  );
+}
+
+function parseOrganizationAgent(entry: unknown): OrganizationAgent | null {
+  if (!isRecord(entry)) {
+    return null;
+  }
+  const id = asTrimmedString(entry.id);
+  const name = asTrimmedString(entry.name);
+  if (!id || !name) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    role: asTrimmedString(entry.role),
+    companyScope: asTrimmedString(entry.companyScope),
+    teamId: asTrimmedString(entry.teamId),
+    hermesProfile: asTrimmedString(entry.hermesProfile),
+    defaultModel: asTrimmedString(entry.defaultModel),
+    modelBudget: asTrimmedString(entry.modelBudget),
+    toolUse: asTrimmedString(entry.toolUse),
+    memoryOwner: asTrimmedString(entry.memoryOwner),
+    description: asTrimmedString(entry.description),
+  };
+}
+
+function parseOrganization(
+  body: unknown,
+  sourcePath: string,
+): {
+  organization: HybridOrganization;
+  agents: Map<string, OrganizationAgent>;
+} | null {
+  if (!isRecord(body)) {
+    return null;
+  }
+  const schemaVersion = asNumberOrNull(body.schemaVersion) ?? 1;
+  const systemName = asTrimmedString(body.systemName) ?? "Z Claw";
+  const rawTeams = Array.isArray(body.teams) ? body.teams : [];
+  const teams: HybridTeam[] = [];
+  for (const entry of rawTeams) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const id = asTrimmedString(entry.id);
+    const name = asTrimmedString(entry.name);
+    if (!id || !name) {
+      continue;
+    }
+    teams.push({
+      id,
+      name,
+      scope: asTrimmedString(entry.scope) ?? "shared",
+      mission: asTrimmedString(entry.mission),
+      agentIds: asStringArray(entry.agentIds),
+    });
+  }
+  const teamsById = new Map(teams.map((team) => [team.id, team] as const));
+  const rawCompanies = Array.isArray(body.companies) ? body.companies : [];
+  const companies: HybridCompany[] = [];
+  for (const entry of rawCompanies) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const id = asTrimmedString(entry.id);
+    const name = asTrimmedString(entry.name);
+    if (!id || !name) {
+      continue;
+    }
+    const kind = entry.kind === "company" ? "company" : "shared";
+    const teamIds = asStringArray(entry.teamIds);
+    companies.push({
+      id,
+      name,
+      kind,
+      mission: asTrimmedString(entry.mission),
+      teamIds,
+      teams: teamIds
+        .map((teamId) => teamsById.get(teamId))
+        .filter((team): team is HybridTeam => Boolean(team))
+        .map((team) => ({
+          id: team.id,
+          name: team.name,
+          agentIds: team.agentIds,
+        })),
+    });
+  }
+  const agents = new Map<string, OrganizationAgent>();
+  for (const entry of Array.isArray(body.agents) ? body.agents : []) {
+    const agent = parseOrganizationAgent(entry);
+    if (agent) {
+      agents.set(agent.id, agent);
+    }
+  }
+  return {
+    organization: {
+      schemaVersion,
+      systemName,
+      sourcePath,
+      companies,
+      teams,
+    },
+    agents,
+  };
+}
+
+async function readOrganization(): Promise<{
+  organization: HybridOrganization | null;
+  agents: Map<string, OrganizationAgent>;
+  error?: string;
+}> {
+  const sourcePath = organizationPath();
+  try {
+    const raw = await readFile(sourcePath, "utf8");
+    const parsed = parseOrganization(JSON.parse(raw) as unknown, sourcePath);
+    if (!parsed) {
+      return { organization: null, agents: new Map(), error: "invalid organization registry" };
+    }
+    return parsed;
+  } catch (err) {
+    const code = isRecord(err) && typeof err.code === "string" ? err.code : null;
+    if (code === "ENOENT") {
+      return { organization: null, agents: new Map(), error: "organization registry missing" };
+    }
+    return {
+      organization: null,
+      agents: new Map(),
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 function parseAdapterProfiles(body: unknown): AdapterProfileStatus[] | undefined {
@@ -254,9 +451,11 @@ function readProviders(cfg: { models?: unknown }): Record<string, Record<string,
 export const hybridHandlers: GatewayRequestHandlers = {
   "hybrid.status": async ({ context, respond }) => {
     const cfg = context.getRuntimeConfig();
+    const organization = await readOrganization();
     const providers = readProviders(cfg);
     const agentRows = listAgentsForGateway(cfg).agents;
     const agents = agentRows.map((agent) => {
+      const orgAgent = organization.agents.get(agent.id);
       const primary = modelPrimary(agent.model);
       const providerId = providerIdFromModel(primary);
       const hermesBacked = Boolean(
@@ -264,14 +463,21 @@ export const hybridHandlers: GatewayRequestHandlers = {
       );
       return {
         id: agent.id,
-        name: agent.identity?.name?.trim() || agent.name?.trim() || agent.id,
+        name: orgAgent?.name ?? agent.identity?.name?.trim() ?? agent.name?.trim() ?? agent.id,
+        role: orgAgent?.role ?? null,
+        companyScope: orgAgent?.companyScope ?? null,
+        teamId: orgAgent?.teamId ?? null,
         workspace: agent.workspace?.trim() || null,
         modelPrimary: primary,
         providerId,
         hermesBacked,
-        hermesProfile: hermesBacked ? hermesProfileFromModel(primary) : null,
+        hermesProfile:
+          orgAgent?.hermesProfile ?? (hermesBacked ? hermesProfileFromModel(primary) : null),
         runtimeSource: agent.agentRuntime?.source ?? null,
         memoryOwner: hermesBacked ? "hermes" : providerId ? "openclaw" : "unknown",
+        modelBudget: orgAgent?.modelBudget ?? null,
+        toolUse: orgAgent?.toolUse ?? null,
+        description: orgAgent?.description ?? null,
       } satisfies HybridAgentStatus;
     });
     const providerAgentIds = new Map<string, string[]>();
@@ -327,9 +533,13 @@ export const hybridHandlers: GatewayRequestHandlers = {
         "Hermes aggregate session metrics are available through the worker adapter. Exact subscription billing and durable-memory semantics remain external to OpenClaw.",
       );
     }
+    if (organization.error) {
+      caveats.push(`Z-Claw organization registry: ${organization.error}.`);
+    }
     respond(true, {
       ok: true,
       generatedAt: Date.now(),
+      organization: organization.organization,
       providers: providerStatuses,
       agents: finalAgents,
       telemetry: {
