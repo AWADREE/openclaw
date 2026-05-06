@@ -117,6 +117,7 @@ import type {
   NostrProfile,
   ToolsCatalogResult,
   ToolsEffectiveResult,
+  HybridStatusResult,
 } from "./types.ts";
 import { type ChatAttachment, type ChatQueueItem, type CronFormState } from "./ui-types.ts";
 import { generateUUID } from "./uuid.ts";
@@ -531,6 +532,10 @@ export class OpenClawApp extends LitElement {
   @state() healthLoading = false;
   @state() healthResult: HealthSummary | null = null;
   @state() healthError: string | null = null;
+
+  @state() hybridLoading = false;
+  @state() hybridResult: HybridStatusResult | null = null;
+  @state() hybridError: string | null = null;
 
   @state() modelAuthStatusLoading = false;
   @state() modelAuthStatusResult: ModelAuthStatusResult | null = null;

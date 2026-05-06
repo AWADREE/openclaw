@@ -240,6 +240,9 @@ export type AppViewState = {
   toolsEffectiveError: string | null;
   toolsEffectiveResult: import("./types.js").ToolsEffectiveResult | null;
   agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron";
+  hybridLoading: boolean;
+  hybridResult: import("./types.js").HybridStatusResult | null;
+  hybridError: string | null;
   agentFilesLoading: boolean;
   agentFilesError: string | null;
   agentFilesList: AgentsFilesListResult | null;

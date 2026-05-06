@@ -42,6 +42,7 @@ import {
   type DreamingState,
 } from "./controllers/dreaming.ts";
 import { loadExecApprovals, type ExecApprovalsState } from "./controllers/exec-approvals.ts";
+import { loadHybridStatus, type HybridState } from "./controllers/hybrid.ts";
 import { loadLogs, type LogsState } from "./controllers/logs.ts";
 import {
   loadModelAuthStatusState,
@@ -134,6 +135,7 @@ type SettingsAppHost = SettingsHost &
   DreamingState &
   ExecApprovalsState &
   LogsState &
+  HybridState &
   NodesState &
   PresenceState &
   SessionsState &
@@ -364,7 +366,12 @@ export async function refreshActiveTab(host: SettingsHost) {
         await loadOverview(host);
         break;
       case "hybrid":
-        await Promise.allSettled([loadAgents(app), loadSessions(app), loadUsage(app)]);
+        await Promise.allSettled([
+          loadHybridStatus(app),
+          loadAgents(app),
+          loadSessions(app),
+          loadUsage(app),
+        ]);
         break;
       case "channels":
         await loadChannelsTab(host);

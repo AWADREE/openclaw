@@ -7,6 +7,7 @@ type GatewayMethodChannelPlugin = {
 
 const BASE_METHODS = [
   "health",
+  "hybrid.status",
   "diagnostics.stability",
   "doctor.memory.status",
   "doctor.memory.dreamDiary",

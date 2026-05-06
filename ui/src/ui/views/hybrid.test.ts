@@ -63,6 +63,7 @@ describe("summarizeHybridState", () => {
       agentsList,
       sessionsResult,
       usageResult,
+      hybridResult: null,
     });
 
     expect(summary.agentCount).toBe(2);
@@ -81,5 +82,57 @@ describe("summarizeHybridState", () => {
     });
     expect(summary.caveats.some((item) => item.includes("not routed through"))).toBe(true);
     expect(summary.caveats.some((item) => item.includes("Hermes telemetry bridge"))).toBe(true);
+  });
+
+  it("uses gateway hybrid telemetry when available", () => {
+    const summary = summarizeHybridState({
+      connected: true,
+      agentsList: null,
+      sessionsResult: null,
+      usageResult: null,
+      hybridResult: {
+        ok: true,
+        generatedAt: 1,
+        providers: [
+          {
+            id: "hermes-workers",
+            kind: "hermes-worker",
+            baseUrl: "http://127.0.0.1:18981/v1",
+            agentIds: ["builder"],
+            reachable: true,
+            health: { ok: true, models: ["builder"] },
+          },
+        ],
+        agents: [
+          {
+            id: "builder",
+            name: "Owen Carter",
+            workspace: "/home/z/Claw/agents/builder",
+            modelPrimary: "hermes-workers/builder",
+            providerId: "hermes-workers",
+            hermesBacked: true,
+            hermesProfile: "builder",
+            runtimeSource: "agent",
+            memoryOwner: "hermes",
+          },
+        ],
+        telemetry: {
+          openclawUsageAuthority: "observed",
+          hermesBillingAuthority: "unavailable",
+          hermesMemoryAuthority: "external",
+        },
+        caveats: ["Hermes metrics bridge pending."],
+      },
+    });
+
+    expect(summary.providers).toHaveLength(1);
+    expect(summary.providers[0]?.reachable).toBe(true);
+    expect(summary.agents[0]).toMatchObject({
+      id: "builder",
+      name: "Owen Carter",
+      hermesBacked: true,
+      hermesProfile: "builder",
+    });
+    expect(summary.caveats).toContain("Hermes metrics bridge pending.");
   });
 });

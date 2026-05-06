@@ -100,6 +100,7 @@ import {
   saveExecApprovals,
   updateExecApprovalsFormValue,
 } from "./controllers/exec-approvals.ts";
+import { loadHybridStatus } from "./controllers/hybrid.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
@@ -1677,10 +1678,21 @@ export function renderApp(state: AppViewState) {
               agentsList: state.agentsList,
               sessionsResult: state.sessionsResult,
               usageResult: state.usageResult,
-              loading: state.agentsLoading || state.sessionsLoading || state.usageLoading,
-              error: state.agentsError ?? state.sessionsError ?? state.usageError,
+              hybridResult: state.hybridResult,
+              loading:
+                state.hybridLoading ||
+                state.agentsLoading ||
+                state.sessionsLoading ||
+                state.usageLoading,
+              error:
+                state.hybridError ?? state.agentsError ?? state.sessionsError ?? state.usageError,
               onRefresh: () => {
-                void Promise.allSettled([loadAgents(state), loadSessions(state), loadUsage(state)]);
+                void Promise.allSettled([
+                  loadHybridStatus(state),
+                  loadAgents(state),
+                  loadSessions(state),
+                  loadUsage(state),
+                ]);
               },
               onNavigate: (tab) => state.setTab(tab as import("./navigation.ts").Tab),
             })

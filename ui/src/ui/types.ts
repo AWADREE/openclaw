@@ -343,6 +343,40 @@ export type AgentsListResult = {
   agents: GatewayAgentRow[];
 };
 
+export type HybridStatusResult = {
+  ok: true;
+  generatedAt: number;
+  providers: Array<{
+    id: string;
+    kind: "hermes-worker" | "model-provider";
+    baseUrl: string | null;
+    agentIds: string[];
+    reachable: boolean | null;
+    health?: {
+      ok?: boolean;
+      models?: string[];
+    };
+    error?: string;
+  }>;
+  agents: Array<{
+    id: string;
+    name: string;
+    workspace: string | null;
+    modelPrimary: string | null;
+    providerId: string | null;
+    hermesBacked: boolean;
+    hermesProfile: string | null;
+    runtimeSource: string | null;
+    memoryOwner: "hermes" | "openclaw" | "unknown";
+  }>;
+  telemetry: {
+    openclawUsageAuthority: "observed";
+    hermesBillingAuthority: "unavailable";
+    hermesMemoryAuthority: "external";
+  };
+  caveats: string[];
+};
+
 export type AgentIdentityResult = {
   agentId: string;
   name: string;

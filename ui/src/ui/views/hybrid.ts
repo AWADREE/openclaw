@@ -7,6 +7,7 @@ import type {
   GatewaySessionRow,
   SessionsListResult,
   SessionsUsageResult,
+  HybridStatusResult,
 } from "../types.ts";
 
 type HybridAgentStatus = "active" | "idle" | "unknown";
@@ -35,6 +36,7 @@ export type HybridSummary = {
   openclawNativeCost: number;
   openclawNativeTokens: number;
   agents: HybridAgentSummary[];
+  providers: HybridStatusResult["providers"];
   caveats: string[];
 };
 
@@ -43,6 +45,7 @@ export type HybridProps = {
   agentsList: AgentsListResult | null;
   sessionsResult: SessionsListResult | null;
   usageResult: SessionsUsageResult | null;
+  hybridResult: HybridStatusResult | null;
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
@@ -110,10 +113,28 @@ export function summarizeHybridState(props: {
   agentsList: AgentsListResult | null;
   sessionsResult: SessionsListResult | null;
   usageResult: SessionsUsageResult | null;
+  hybridResult?: HybridStatusResult | null;
 }): HybridSummary {
   const sessions = props.sessionsResult?.sessions ?? [];
-  const agents = (props.agentsList?.agents ?? []).map((agent) => {
+  const backendAgentsById = new Map(
+    (props.hybridResult?.agents ?? []).map((agent) => [agent.id, agent] as const),
+  );
+  const sourceAgents =
+    props.agentsList?.agents ??
+    props.hybridResult?.agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      identity: { name: agent.name },
+      workspace: agent.workspace ?? undefined,
+      model: agent.modelPrimary ? { primary: agent.modelPrimary } : undefined,
+      agentRuntime: agent.runtimeSource
+        ? { id: agent.id, source: agent.runtimeSource as "env" | "agent" | "defaults" | "implicit" }
+        : undefined,
+    })) ??
+    [];
+  const agents = sourceAgents.map((agent) => {
     const primary = modelPrimary(agent);
+    const backend = backendAgentsById.get(agent.id);
     const agentSessions = sessions.filter((row) => sessionAgentId(row) === agent.id);
     const lastActiveAt =
       agentSessions.reduce<number | null>((latest, row) => {
@@ -123,12 +144,12 @@ export function summarizeHybridState(props: {
     const usage = usageForAgent(props.usageResult, agent.id);
     return {
       id: agent.id,
-      name: agent.identity?.name?.trim() || agent.name?.trim() || agent.id,
-      workspace: agent.workspace?.trim() || null,
-      modelPrimary: primary,
-      hermesBacked: isHermesWorkerModel(primary),
-      hermesProfile: hermesProfileFromModel(primary),
-      runtimeSource: agent.agentRuntime?.source ?? null,
+      name: backend?.name ?? agent.identity?.name?.trim() ?? agent.name?.trim() ?? agent.id,
+      workspace: backend?.workspace ?? agent.workspace?.trim() ?? null,
+      modelPrimary: backend?.modelPrimary ?? primary,
+      hermesBacked: backend?.hermesBacked ?? isHermesWorkerModel(primary),
+      hermesProfile: backend?.hermesProfile ?? hermesProfileFromModel(primary),
+      runtimeSource: backend?.runtimeSource ?? agent.agentRuntime?.source ?? null,
       sessionCount: agentSessions.length,
       activeSessionCount: agentSessions.filter(isActiveSession).length,
       lastActiveAt,
@@ -140,7 +161,7 @@ export function summarizeHybridState(props: {
   const openclawNativeCost = toNumberOrZero(props.usageResult?.totals?.totalCost);
   const openclawNativeTokens = toNumberOrZero(props.usageResult?.totals?.totalTokens);
   const hermesBackedCount = agents.filter((agent) => agent.hermesBacked).length;
-  const caveats: string[] = [];
+  const caveats: string[] = [...(props.hybridResult?.caveats ?? [])];
   if (agents.length > 0 && hermesBackedCount < agents.length) {
     caveats.push("Some agents are not routed through the Hermes worker provider.");
   }
@@ -160,6 +181,7 @@ export function summarizeHybridState(props: {
     openclawNativeCost,
     openclawNativeTokens,
     agents,
+    providers: props.hybridResult?.providers ?? [],
     caveats,
   };
 }
@@ -213,6 +235,44 @@ function renderAgentCard(agent: HybridAgentSummary) {
         <div>
           <dt>OpenClaw usage</dt>
           <dd>${formatTokens(agent.usageTokens)} · ${formatCost(agent.usageCost)}</dd>
+        </div>
+      </dl>
+    </article>
+  `;
+}
+
+function renderProvider(provider: HybridStatusResult["providers"][number]) {
+  const status =
+    provider.reachable === true
+      ? html`<span class="hybrid-pill hybrid-pill--active">Reachable</span>`
+      : provider.reachable === false
+        ? html`<span class="hybrid-pill hybrid-pill--idle">Unavailable</span>`
+        : html`<span class="hybrid-pill">Not probed</span>`;
+  return html`
+    <article class="hybrid-provider">
+      <div class="hybrid-agent__topline">
+        <div>
+          <h3>${provider.id}</h3>
+          <div class="hybrid-agent__id">${provider.kind}</div>
+        </div>
+        ${status}
+      </div>
+      <dl class="hybrid-agent__facts">
+        <div>
+          <dt>Endpoint</dt>
+          <dd>${provider.baseUrl ?? "n/a"}</dd>
+        </div>
+        <div>
+          <dt>Agents</dt>
+          <dd>${provider.agentIds.join(", ") || "none"}</dd>
+        </div>
+        <div>
+          <dt>Adapter models</dt>
+          <dd>${provider.health?.models?.join(", ") || "not reported"}</dd>
+        </div>
+        <div>
+          <dt>Error</dt>
+          <dd>${provider.error ?? "none"}</dd>
         </div>
       </dl>
     </article>
@@ -299,6 +359,15 @@ export function renderHybrid(props: HybridProps) {
               </ul>`
             : html`<div class="muted">No telemetry caveats detected.</div>`}
         </div>
+      </section>
+
+      <section class="hybrid-panel">
+        <h3>Provider Telemetry</h3>
+        ${summary.providers.length > 0
+          ? html`<div class="hybrid-providers">${summary.providers.map(renderProvider)}</div>`
+          : html`<div class="muted" style="margin-top: 12px">
+              No provider telemetry is available from this gateway yet.
+            </div>`}
       </section>
 
       <section class="hybrid-agents">
