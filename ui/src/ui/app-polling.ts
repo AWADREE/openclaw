@@ -1,5 +1,3 @@
-import type { AgentsState } from "./controllers/agents.ts";
-import { loadAgents } from "./controllers/agents.ts";
 import type { DebugState } from "./controllers/debug.ts";
 import { loadDebug } from "./controllers/debug.ts";
 import type { HybridState } from "./controllers/hybrid.ts";
@@ -8,10 +6,6 @@ import type { LogsState } from "./controllers/logs.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import type { NodesState } from "./controllers/nodes.ts";
 import { loadNodes } from "./controllers/nodes.ts";
-import type { SessionsState } from "./controllers/sessions.ts";
-import { loadSessions } from "./controllers/sessions.ts";
-import type { UsageState } from "./controllers/usage.ts";
-import { loadUsage } from "./controllers/usage.ts";
 
 type PollingHost = {
   nodesPollInterval: number | null;
@@ -92,12 +86,7 @@ export function startHybridPolling(host: PollingHost) {
     if (!shouldPollHybrid(host)) {
       return;
     }
-    void Promise.allSettled([
-      loadHybridStatus(host as unknown as HybridState),
-      loadAgents(host as unknown as AgentsState),
-      loadSessions(host as unknown as SessionsState),
-      loadUsage(host as unknown as UsageState),
-    ]);
+    void loadHybridStatus(host as unknown as HybridState);
   }, 2500);
 }
 

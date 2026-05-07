@@ -144,11 +144,47 @@ function profileHasActiveInvocation(profile: HybridProviderProfile | null): bool
   return nowSeconds - lastInvokeAt < 20 && nowSeconds - lastCompleteAt < 8;
 }
 
+function runUpdatedAtMs(run: HybridRunSummary): number | null {
+  const raw = run.updatedAt ?? run.createdAt;
+  if (!raw) {
+    return null;
+  }
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function runIsInProgress(run: HybridRunSummary): boolean {
+  const status = run.status.toLowerCase();
+  if (
+    [
+      "accepted",
+      "rejected",
+      "blocked",
+      "failed",
+      "cancelled",
+      "canceled",
+      "complete",
+      "completed",
+    ].includes(status)
+  ) {
+    return false;
+  }
+  const updatedAtMs = runUpdatedAtMs(run);
+  if (updatedAtMs == null) {
+    return true;
+  }
+  return Date.now() - updatedAtMs < 30 * 60 * 1000;
+}
+
 function statusForAgent(
   sessions: GatewaySessionRow[],
   profile: HybridProviderProfile | null,
+  runs: HybridRunSummary[],
 ): HybridAgentStatus {
   if (profileHasActiveInvocation(profile)) {
+    return "active";
+  }
+  if (runs.some(runIsInProgress)) {
     return "active";
   }
   if (sessions.some(isActiveSession)) {
@@ -245,11 +281,32 @@ export function summarizeHybridState(props: {
       profilesByModel.get(providerModel ?? agent.id) ??
       null;
     const agentSessions = sessions.filter((row) => sessionAgentId(row) === agent.id);
-    const lastActiveAt =
-      agentSessions.reduce<number | null>((latest, row) => {
-        const updatedAt = toNumberOrZero(row.updatedAt);
-        return updatedAt > (latest ?? 0) ? updatedAt : latest;
+    const recentRuns =
+      props.hybridResult?.runs.recent.filter((run) =>
+        run.agents.some((entry) => entry.agent === agent.id),
+      ) ?? [];
+    const latestRunAt =
+      recentRuns.reduce<number | null>((latest, run) => {
+        const updatedAt = runUpdatedAtMs(run);
+        return updatedAt != null && updatedAt > (latest ?? 0) ? updatedAt : latest;
       }, null) ?? null;
+    const latestProfileSeconds =
+      profileTelemetry == null
+        ? 0
+        : Math.max(
+            profileTelemetry.log.lastInvokeAt ?? 0,
+            profileTelemetry.log.lastCompleteAt ?? 0,
+            profileTelemetry.sessions.latestSessionMtime ?? 0,
+          );
+    const latestProfileAt = latestProfileSeconds > 0 ? latestProfileSeconds * 1000 : null;
+    const latestSessionAt = agentSessions.reduce<number | null>((latest, row) => {
+      const updatedAt = toNumberOrZero(row.updatedAt);
+      return updatedAt > (latest ?? 0) ? updatedAt : latest;
+    }, null);
+    const lastActiveAt = [latestSessionAt, latestRunAt, latestProfileAt].reduce<number | null>(
+      (latest, value) => (value != null && value > (latest ?? 0) ? value : latest),
+      null,
+    );
     const usage = usageForAgent(props.usageResult, agent.id);
     return {
       id: agent.id,
@@ -268,14 +325,11 @@ export function summarizeHybridState(props: {
       sessionCount: agentSessions.length,
       activeSessionCount: agentSessions.filter(isActiveSession).length,
       lastActiveAt,
-      status: statusForAgent(agentSessions, profileTelemetry),
+      status: statusForAgent(agentSessions, profileTelemetry, recentRuns),
       usageTokens: usage.tokens,
       usageCost: usage.cost,
       profileTelemetry,
-      recentRuns:
-        props.hybridResult?.runs.recent.filter((run) =>
-          run.agents.some((entry) => entry.agent === agent.id),
-        ) ?? [],
+      recentRuns,
     } satisfies HybridAgentSummary;
   });
   const openclawNativeCost = toNumberOrZero(props.usageResult?.totals?.totalCost);
