@@ -6,6 +6,8 @@ import {
   stopNodesPolling,
   startDebugPolling,
   stopDebugPolling,
+  startHybridPolling,
+  stopHybridPolling,
 } from "./app-polling.ts";
 import { observeTopbar, scheduleChatScroll, scheduleLogsScroll } from "./app-scroll.ts";
 import {
@@ -79,6 +81,9 @@ export function handleConnected(host: LifecycleHost) {
   if (host.tab === "debug") {
     startDebugPolling(host as unknown as Parameters<typeof startDebugPolling>[0]);
   }
+  if (host.tab === "hybrid" || host.tab === "officeSpace") {
+    startHybridPolling(host as unknown as Parameters<typeof startHybridPolling>[0]);
+  }
   host.controlUiResponsivenessObserver ??= startControlUiResponsivenessObserver(
     host as unknown as Parameters<typeof startControlUiResponsivenessObserver>[0],
   );
@@ -107,6 +112,7 @@ export function handleDisconnected(host: LifecycleHost) {
   stopNodesPolling(host as unknown as Parameters<typeof stopNodesPolling>[0]);
   stopLogsPolling(host as unknown as Parameters<typeof stopLogsPolling>[0]);
   stopDebugPolling(host as unknown as Parameters<typeof stopDebugPolling>[0]);
+  stopHybridPolling(host as unknown as Parameters<typeof stopHybridPolling>[0]);
   cancelHostAnimationFrame(host.chatScrollFrame);
   host.chatScrollFrame = null;
   cancelHostAnimationFrame(host.logsScrollFrame);

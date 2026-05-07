@@ -128,7 +128,29 @@ function usageForAgent(result: SessionsUsageResult | null, agentId: string) {
   return { tokens, cost };
 }
 
-function statusForAgent(sessions: GatewaySessionRow[]): HybridAgentStatus {
+function profileHasActiveInvocation(profile: HybridProviderProfile | null): boolean {
+  const lastInvokeAt = profile?.log.lastInvokeAt;
+  if (typeof lastInvokeAt !== "number" || !Number.isFinite(lastInvokeAt)) {
+    return false;
+  }
+  const lastCompleteAt = profile?.log.lastCompleteAt;
+  if (typeof lastCompleteAt !== "number" || !Number.isFinite(lastCompleteAt)) {
+    return true;
+  }
+  if (lastInvokeAt > lastCompleteAt + 0.25) {
+    return true;
+  }
+  const nowSeconds = Date.now() / 1000;
+  return nowSeconds - lastInvokeAt < 20 && nowSeconds - lastCompleteAt < 8;
+}
+
+function statusForAgent(
+  sessions: GatewaySessionRow[],
+  profile: HybridProviderProfile | null,
+): HybridAgentStatus {
+  if (profileHasActiveInvocation(profile)) {
+    return "active";
+  }
   if (sessions.some(isActiveSession)) {
     return "active";
   }
@@ -246,7 +268,7 @@ export function summarizeHybridState(props: {
       sessionCount: agentSessions.length,
       activeSessionCount: agentSessions.filter(isActiveSession).length,
       lastActiveAt,
-      status: statusForAgent(agentSessions),
+      status: statusForAgent(agentSessions, profileTelemetry),
       usageTokens: usage.tokens,
       usageCost: usage.cost,
       profileTelemetry,

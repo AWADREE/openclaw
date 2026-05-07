@@ -6,6 +6,8 @@ import {
   stopLogsPolling,
   startDebugPolling,
   stopDebugPolling,
+  startHybridPolling,
+  stopHybridPolling,
 } from "./app-polling.ts";
 import { scheduleChatScroll, scheduleLogsScroll } from "./app-scroll.ts";
 import {
@@ -595,6 +597,9 @@ function applyTabSelection(
   );
   (next === "debug" ? startDebugPolling : stopDebugPolling)(
     host as unknown as Parameters<typeof startDebugPolling>[0],
+  );
+  (next === "hybrid" || next === "officeSpace" ? startHybridPolling : stopHybridPolling)(
+    host as unknown as Parameters<typeof startHybridPolling>[0],
   );
 
   if (options.refreshPolicy === "always" || host.connected) {

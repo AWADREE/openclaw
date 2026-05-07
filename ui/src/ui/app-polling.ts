@@ -1,15 +1,25 @@
+import type { AgentsState } from "./controllers/agents.ts";
+import { loadAgents } from "./controllers/agents.ts";
 import type { DebugState } from "./controllers/debug.ts";
 import { loadDebug } from "./controllers/debug.ts";
+import type { HybridState } from "./controllers/hybrid.ts";
+import { loadHybridStatus } from "./controllers/hybrid.ts";
 import type { LogsState } from "./controllers/logs.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import type { NodesState } from "./controllers/nodes.ts";
 import { loadNodes } from "./controllers/nodes.ts";
+import type { SessionsState } from "./controllers/sessions.ts";
+import { loadSessions } from "./controllers/sessions.ts";
+import type { UsageState } from "./controllers/usage.ts";
+import { loadUsage } from "./controllers/usage.ts";
 
 type PollingHost = {
   nodesPollInterval: number | null;
   logsPollInterval: number | null;
   debugPollInterval: number | null;
+  hybridPollInterval?: number | null;
   tab: string;
+  connected?: boolean;
 };
 
 export function startNodesPolling(host: PollingHost) {
@@ -68,4 +78,33 @@ export function stopDebugPolling(host: PollingHost) {
   }
   clearInterval(host.debugPollInterval);
   host.debugPollInterval = null;
+}
+
+function shouldPollHybrid(host: PollingHost): boolean {
+  return host.connected === true && (host.tab === "hybrid" || host.tab === "officeSpace");
+}
+
+export function startHybridPolling(host: PollingHost) {
+  if (host.hybridPollInterval != null) {
+    return;
+  }
+  host.hybridPollInterval = window.setInterval(() => {
+    if (!shouldPollHybrid(host)) {
+      return;
+    }
+    void Promise.allSettled([
+      loadHybridStatus(host as unknown as HybridState),
+      loadAgents(host as unknown as AgentsState),
+      loadSessions(host as unknown as SessionsState),
+      loadUsage(host as unknown as UsageState),
+    ]);
+  }, 2500);
+}
+
+export function stopHybridPolling(host: PollingHost) {
+  if (host.hybridPollInterval == null) {
+    return;
+  }
+  clearInterval(host.hybridPollInterval);
+  host.hybridPollInterval = null;
 }
