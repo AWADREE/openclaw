@@ -505,10 +505,22 @@ function parseManifestItems(value: unknown, kind: string): unknown[] {
   }
   const out: unknown[] = [];
   for (const entry of value) {
-    if (!isRecord(entry)) {
-      continue;
-    }
     if (kind === "agents") {
+      if (typeof entry === "string") {
+        const agent = entry.trim();
+        if (agent) {
+          out.push({
+            agent,
+            role: null,
+            model: null,
+            note: null,
+          });
+        }
+        continue;
+      }
+      if (!isRecord(entry)) {
+        continue;
+      }
       const agent = asTrimmedString(entry.agent);
       if (!agent) {
         continue;
@@ -520,6 +532,21 @@ function parseManifestItems(value: unknown, kind: string): unknown[] {
         note: asTrimmedString(entry.note),
       });
     } else if (kind === "artifacts") {
+      if (typeof entry === "string") {
+        const path = entry.trim();
+        if (path) {
+          out.push({
+            path,
+            kind: "artifact",
+            agent: null,
+            note: null,
+          });
+        }
+        continue;
+      }
+      if (!isRecord(entry)) {
+        continue;
+      }
       const path = asTrimmedString(entry.path);
       const artifactKind = asTrimmedString(entry.kind);
       if (!path || !artifactKind) {
@@ -532,6 +559,19 @@ function parseManifestItems(value: unknown, kind: string): unknown[] {
         note: asTrimmedString(entry.note),
       });
     } else if (kind === "decisions") {
+      if (typeof entry === "string") {
+        const decision = entry.trim();
+        if (decision) {
+          out.push({
+            decision,
+            reason: null,
+          });
+        }
+        continue;
+      }
+      if (!isRecord(entry)) {
+        continue;
+      }
       const decision = asTrimmedString(entry.decision);
       if (!decision) {
         continue;
@@ -541,6 +581,19 @@ function parseManifestItems(value: unknown, kind: string): unknown[] {
         reason: asTrimmedString(entry.reason),
       });
     } else if (kind === "workflowDeviations") {
+      if (typeof entry === "string") {
+        const deviation = entry.trim();
+        if (deviation) {
+          out.push({
+            deviation,
+            reason: null,
+          });
+        }
+        continue;
+      }
+      if (!isRecord(entry)) {
+        continue;
+      }
       const deviation = asTrimmedString(entry.deviation);
       if (!deviation) {
         continue;

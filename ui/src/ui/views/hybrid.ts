@@ -129,6 +129,22 @@ function usageForAgent(result: SessionsUsageResult | null, agentId: string) {
 }
 
 function profileHasActiveInvocation(profile: HybridProviderProfile | null): boolean {
+  const nowSeconds = Date.now() / 1000;
+  const lastStartedAt = profile?.metrics?.lastStartedAt;
+  if (typeof lastStartedAt === "number" && Number.isFinite(lastStartedAt)) {
+    const lastEndedAt = profile?.metrics?.lastEndedAt;
+    const latestSessionMtime = profile?.sessions.latestSessionMtime;
+    const hasNoKnownEnd = typeof lastEndedAt !== "number" || !Number.isFinite(lastEndedAt);
+    const startedAfterEnd = !hasNoKnownEnd && lastStartedAt > lastEndedAt + 0.25;
+    const recentlyTouched =
+      typeof latestSessionMtime === "number" &&
+      Number.isFinite(latestSessionMtime) &&
+      nowSeconds - latestSessionMtime < 30 * 60;
+    if ((hasNoKnownEnd || startedAfterEnd) && recentlyTouched) {
+      return true;
+    }
+  }
+
   const lastInvokeAt = profile?.log.lastInvokeAt;
   if (typeof lastInvokeAt !== "number" || !Number.isFinite(lastInvokeAt)) {
     return false;
@@ -140,7 +156,6 @@ function profileHasActiveInvocation(profile: HybridProviderProfile | null): bool
   if (lastInvokeAt > lastCompleteAt + 0.25) {
     return true;
   }
-  const nowSeconds = Date.now() / 1000;
   return nowSeconds - lastInvokeAt < 20 && nowSeconds - lastCompleteAt < 8;
 }
 
@@ -169,11 +184,7 @@ function runIsInProgress(run: HybridRunSummary): boolean {
   ) {
     return false;
   }
-  const updatedAtMs = runUpdatedAtMs(run);
-  if (updatedAtMs == null) {
-    return true;
-  }
-  return Date.now() - updatedAtMs < 30 * 60 * 1000;
+  return true;
 }
 
 function statusForAgent(
