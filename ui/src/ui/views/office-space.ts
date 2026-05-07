@@ -25,6 +25,7 @@ type OfficeRoom = {
   name: string;
   mission: string | null;
   kind: "executive" | "team" | "common";
+  theme: string;
   agents: HybridAgentSummary[];
 };
 
@@ -100,18 +101,67 @@ function agentActivity(agent: HybridAgentSummary): OfficeActivity {
   return "standby";
 }
 
-function teamMission(summary: HybridSummary, teamId: string): string | null {
-  return summary.organization?.teams.find((team) => team.id === teamId)?.mission ?? null;
+function roomTheme(id: string): string {
+  if (id === "common" || id === "roof") return id;
+  if (id.includes("engineer") || id.includes("development")) return "engineering";
+  if (id.includes("qa") || id.includes("quality") || id.includes("test")) return "qa";
+  if (id.includes("research")) return "research";
+  if (id.includes("planning")) return "planning";
+  if (id.includes("report")) return "reporting";
+  if (id.includes("executive")) return "executive";
+  if (id.includes("writing") || id.includes("publishing") || id.includes("editing")) {
+    return "writing";
+  }
+  if (id.includes("media")) return "media";
+  return "general";
+}
+
+function agentVisual(agent: HybridAgentSummary): {
+  className: string;
+  style: string;
+} {
+  const roleText = `${agent.id} ${agent.role ?? ""} ${agent.teamId ?? ""}`.toLowerCase();
+  const archetype =
+    roleText.includes("ceo") || roleText.includes("executive")
+      ? "executive"
+      : roleText.includes("qa") || roleText.includes("test")
+        ? "qa"
+        : roleText.includes("research")
+          ? "research"
+          : roleText.includes("planner") || roleText.includes("planning")
+            ? "planning"
+            : roleText.includes("report")
+              ? "reporting"
+              : roleText.includes("builder") ||
+                  roleText.includes("coder") ||
+                  roleText.includes("engineer")
+                ? "engineering"
+                : "general";
+  const skin = ["#d6a06f", "#b87955", "#8f5d45", "#e0b487"][stableIndex(agent.id, 4)];
+  const hair = ["#1d2430", "#3b251b", "#5a3321", "#222831", "#6f4f28"][
+    stableIndex(`${agent.id}:hair`, 5)
+  ];
+  const hue = 185 + stableIndex(agent.id, 95);
+  return {
+    className: `office-agent--avatar-${archetype} office-agent--hair-${stableIndex(
+      `${agent.id}:cut`,
+      4,
+    )}`,
+    style: `--agent-hue: ${hue}; --agent-skin: ${skin}; --agent-hair: ${hair}`,
+  };
 }
 
 function buildRooms(summary: HybridSummary): OfficeRoom[] {
   const byTeam = new Map<string, HybridAgentSummary[]>();
   const common: HybridAgentSummary[] = [];
+  const roof: HybridAgentSummary[] = [];
   for (const agent of summary.agents) {
     if (agent.status === "active" && agent.teamId) {
       const existing = byTeam.get(agent.teamId) ?? [];
       existing.push(agent);
       byTeam.set(agent.teamId, existing);
+    } else if (stableIndex(`${agent.id}:rest-room`, 2) === 0) {
+      roof.push(agent);
     } else {
       common.push(agent);
     }
@@ -136,6 +186,7 @@ function buildRooms(summary: HybridSummary): OfficeRoom[] {
       name: team?.name ?? teamId,
       mission: team?.mission ?? null,
       kind: teamId === "executive" ? "executive" : "team",
+      theme: roomTheme(teamId),
       agents,
     });
   }
@@ -145,7 +196,16 @@ function buildRooms(summary: HybridSummary): OfficeRoom[] {
     name: "Common Room",
     mission: "Idle and standby agents wait here until OpenClaw routes new work.",
     kind: "common",
+    theme: "common",
     agents: common,
+  });
+  rooms.push({
+    id: "roof",
+    name: "Rooftop",
+    mission: "Outdoor common space for idle agents taking air between assignments.",
+    kind: "common",
+    theme: "roof",
+    agents: roof,
   });
 
   return rooms;
@@ -157,11 +217,11 @@ function renderAgentSprite(agent: HybridAgentSummary) {
   const metrics = agent.profileTelemetry?.metrics;
   const hasRecentErrors = (agent.profileTelemetry?.log.recentErrorCount ?? 0) > 0;
   const activity = agentActivity(agent);
-  const hue = 185 + stableIndex(agent.id, 95);
+  const visual = agentVisual(agent);
   return html`
     <details
-      class="office-agent office-agent--${agent.status} office-agent--${activity}"
-      style=${`--agent-hue: ${hue}`}
+      class="office-agent office-agent--${agent.status} office-agent--${activity} ${visual.className}"
+      style=${visual.style}
     >
       <summary class="office-agent__summary">
         <span class="office-agent__sprite" aria-hidden="true">
@@ -170,6 +230,7 @@ function renderAgentSprite(agent: HybridAgentSummary) {
           <span class="office-agent__body"></span>
           <span class="office-agent__arm office-agent__arm--left"></span>
           <span class="office-agent__arm office-agent__arm--right"></span>
+          <span class="office-agent__badge"></span>
           <span class="office-agent__prop"></span>
         </span>
         <span class="office-agent__main">
@@ -218,11 +279,13 @@ function renderAgentSprite(agent: HybridAgentSummary) {
 function renderRoom(room: OfficeRoom) {
   const workstations = Math.max(2, Math.min(5, room.agents.length || 2));
   const emptyLabel =
-    room.kind === "common"
-      ? "No idle agents in the common room."
-      : "Department office is ready. No active agents assigned right now.";
+    room.id === "roof"
+      ? "Rooftop is quiet. No agents are outside right now."
+      : room.kind === "common"
+        ? "No idle agents in the common room."
+        : "Department office is ready. No active agents assigned right now.";
   return html`
-    <section class="office-room office-room--${room.kind}">
+    <section class="office-room office-room--${room.kind} office-room--theme-${room.theme}">
       <div class="office-room__header">
         <div>
           <h3>${room.name}</h3>
@@ -232,19 +295,28 @@ function renderRoom(room: OfficeRoom) {
       </div>
       <div class="office-room__floor">
         <span class="office-room__wall" aria-hidden="true"></span>
+        <span
+          class="office-room__feature office-room__feature--${room.theme}"
+          aria-hidden="true"
+        ></span>
         <span class="office-room__plant" aria-hidden="true"></span>
-        ${room.kind === "common"
+        ${room.id === "roof"
           ? html`
-              <span class="office-room__sofa" aria-hidden="true"></span>
-              <span class="office-room__table" aria-hidden="true"></span>
+              <span class="office-room__skyline" aria-hidden="true"></span>
+              <span class="office-room__bench" aria-hidden="true"></span>
             `
-          : Array.from({ length: workstations }, (_, index) => index).map(
-              (index) =>
-                html`<span
-                  class="office-room__desk office-room__desk--${index + 1}"
-                  aria-hidden="true"
-                ></span>`,
-            )}
+          : room.kind === "common"
+            ? html`
+                <span class="office-room__sofa" aria-hidden="true"></span>
+                <span class="office-room__table" aria-hidden="true"></span>
+              `
+            : Array.from({ length: workstations }, (_, index) => index).map(
+                (index) =>
+                  html`<span
+                    class="office-room__desk office-room__desk--${index + 1}"
+                    aria-hidden="true"
+                  ></span>`,
+              )}
         ${room.agents.length > 0
           ? room.agents.map(
               (agent, index) =>
